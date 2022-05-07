@@ -381,7 +381,7 @@ double* get_output_layer(struct NetworkState* const network_state) {
 }
 
 
-
+/*
 // For testing...
 int main() {
     printf("Starting...\n");
@@ -411,3 +411,4 @@ int main() {
 
     return 0;
 }
+*/
