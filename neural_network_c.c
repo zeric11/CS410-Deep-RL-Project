@@ -46,33 +46,33 @@ struct NeuralNetwork {
 struct NeuralNetwork* create_network(const int input_size, const int hidden_amount, const int hidden_size, const int output_size);
 void free_neural_network(struct NeuralNetwork* neural_network);
 
-struct NetworkState* execute_forward_propagation(struct NeuralNetwork* neural_network, double* input);
-double* create_next_layer(double* layer, const int layer_size, double** weights, const int next_layer_size);
+struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input);
+double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size);
 void free_network_state(struct NetworkState* network_state);
 
-void execute_back_propagation(struct NeuralNetwork* neural_network, struct NetworkState* network_state, double* target_output);
-double* create_loss(double* output, double* target_output, const int output_size);
-double* create_error(double* layer, const int layer_size, double** weights, double* previous_error, const int previous_error_size);
-void update_weights(double* layer, const int layer_size, double** weights, double** delta_weights, double* error, const int error_size);
+void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
+double* create_loss(double* const output, double* const target_output, const int output_size);
+double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
+void update_weights(double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size);
 
 double* create_double_array(const int size, const double initial_value);
 double** create_2D_double_array(const int i_size, const int j_size, const double initial_value);
 double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const double initial_value);
 
-double* create_double_array_copy(double* array, const int size);
-double** create_2D_double_array_copy(double** array, const int i_size, const int j_size);
-double*** create_3D_double_array_copy(double*** array, const int i_size, const int j_size, const int k_size);
+double* create_double_array_copy(double* const array, const int size);
+double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size);
+double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size);
 
 void free_2D_double_array(double** array, const int size);
 void free_3D_double_array(double*** array, const int i_size, const int j_size);
 
-int get_input_size(struct NetworkState* network_state);
-int get_hidden_amount(struct NetworkState* network_state);
-int get_hidden_size(struct NetworkState* network_state);
-int get_output_size(struct NetworkState* network_state);
-double* get_input_layer(struct NetworkState* network_state);
-double** get_hidden_layers(struct NetworkState* network_state);
-double* get_output_layer(struct NetworkState* network_state);
+int get_input_size(struct NetworkState* const network_state);
+int get_hidden_amount(struct NetworkState* const network_state);
+int get_hidden_size(struct NetworkState* const network_state);
+int get_output_size(struct NetworkState* const network_state);
+double* get_input_layer(struct NetworkState* const network_state);
+double** get_hidden_layers(struct NetworkState* const network_state);
+double* get_output_layer(struct NetworkState* const network_state);
 
 
 struct NeuralNetwork* create_network(const int input_size, const int hidden_amount, const int hidden_size, const int output_size) {
@@ -159,7 +159,7 @@ void free_network_state(struct NetworkState* network_state) {
 }
 
 
-struct NetworkState* execute_forward_propagation(struct NeuralNetwork* neural_network, double* input) {
+struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input) {
     const int input_size = neural_network->input_size;
     const int hidden_amount = neural_network->hidden_amount;
     const int hidden_size = neural_network->hidden_size;
@@ -189,7 +189,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* neural_ne
 }
 
 
-double* create_next_layer(double* layer, const int layer_size, double** weights, const int next_layer_size) {
+double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size) {
     double* next_layer = (double*)malloc(next_layer_size * sizeof(double));
     for(int i = 0; i < next_layer_size; ++i) {
         double total = 0;
@@ -202,7 +202,7 @@ double* create_next_layer(double* layer, const int layer_size, double** weights,
 }
 
 
-void execute_back_propagation(struct NeuralNetwork* neural_network, struct NetworkState* network_state, double* target_output) {
+void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output) {
     const int input_size = neural_network->input_size;
     const int hidden_amount = neural_network->hidden_amount;
     const int hidden_size = neural_network->hidden_size;
@@ -230,7 +230,7 @@ void execute_back_propagation(struct NeuralNetwork* neural_network, struct Netwo
 }
 
 
-double* create_loss(double* output, double* target_output, const int output_size) {
+double* create_loss(double* const output, double* const target_output, const int output_size) {
     double* loss = (double*)malloc(output_size * sizeof(double));
     for(int i = 0; i < output_size; ++i) {
         loss[i] = output[i] - target_output[i];
@@ -239,7 +239,7 @@ double* create_loss(double* output, double* target_output, const int output_size
 }
 
 
-double* create_error(double* layer, const int layer_size, double** weights, double* previous_error, const int previous_error_size) {
+double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size) {
     double* error = (double*)malloc(layer_size * sizeof(double));
     for(int i = 0; i < layer_size; ++i) {
         double total = 0;
@@ -255,7 +255,7 @@ double* create_error(double* layer, const int layer_size, double** weights, doub
 }
 
 
-void update_weights(double* layer, const int layer_size, double** weights, double** delta_weights, double* error, const int error_size) {
+void update_weights(double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size) {
     for(int i = 0; i < layer_size; ++i) {
         for(int j = 0; j < error_size; ++j) {
             double new_value = weights[i][j] + (LEARNING_RATE * layer[i] * error[j]);
@@ -294,7 +294,7 @@ double*** create_3D_double_array(const int i_size, const int j_size, const int k
 }
 
 
-double* create_double_array_copy(double* array, const int size) {
+double* create_double_array_copy(double* const array, const int size) {
     double* new_array = (double*)malloc(size * sizeof(double));
     for(int i = 0; i < size; ++i) {
         new_array[i] = array[i];
@@ -303,7 +303,7 @@ double* create_double_array_copy(double* array, const int size) {
 }
 
 
-double** create_2D_double_array_copy(double** array, const int i_size, const int j_size) {
+double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size) {
     double** new_array = (double**)malloc(i_size * sizeof(double*));
     for(int i = 0; i < i_size; ++i) {
         new_array[i] = create_double_array_copy(array[i], j_size);
@@ -312,7 +312,7 @@ double** create_2D_double_array_copy(double** array, const int i_size, const int
 }
 
 
-double*** create_3D_double_array_copy(double*** array, const int i_size, const int j_size, const int k_size) {
+double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size) {
     double*** new_array = (double***)malloc(i_size * sizeof(double**));
     for(int i = 0; i < i_size; ++i) {
         new_array[i] = create_2D_double_array_copy(array[i], j_size, k_size);
@@ -346,37 +346,37 @@ void free_3D_double_array(double*** array, const int i_size, const int j_size) {
 
 
 // Getters used for Python interface...
-int get_input_size(struct NetworkState* network_state) {
+int get_input_size(struct NetworkState* const network_state) {
     return network_state->input_size;
 }
 
 
-int get_hidden_amount(struct NetworkState* network_state) {
+int get_hidden_amount(struct NetworkState* const network_state) {
     return network_state->hidden_amount;
 }
 
 
-int get_hidden_size(struct NetworkState* network_state) {
+int get_hidden_size(struct NetworkState* const network_state) {
     return network_state->hidden_size;
 }
 
 
-int get_output_size(struct NetworkState* network_state) {
+int get_output_size(struct NetworkState* const network_state) {
     return network_state->output_size;
 }
 
 
-double* get_input_layer(struct NetworkState* network_state) {
+double* get_input_layer(struct NetworkState* const network_state) {
     return network_state->input_layer;
 }
 
 
-double** get_hidden_layers(struct NetworkState* network_state) {
+double** get_hidden_layers(struct NetworkState* const network_state) {
     return network_state->hidden_layers;
 }
 
 
-double* get_output_layer(struct NetworkState* network_state) {
+double* get_output_layer(struct NetworkState* const network_state) {
     return network_state->output_layer;
 }
 
