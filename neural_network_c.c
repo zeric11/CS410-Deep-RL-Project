@@ -381,7 +381,7 @@ double* get_output_layer(struct NetworkState* network_state) {
 }
 
 
-
+/*
 // For testing...
 int main() {
     struct NeuralNetwork* neural_network = create_network(10, 3, 100, 9);
@@ -407,3 +407,4 @@ int main() {
 
     return 0;
 }
+*/
