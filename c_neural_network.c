@@ -1,4 +1,4 @@
-// Compile to use with Python:  gcc -fPIC -shared -o neural_network_c.so neural_network_c.c
+// Compile to use with Python:  gcc -fPIC -shared -o c_neural_network.so c_neural_network.c
 // Check for mem-leaks:         valgrind --tool=memcheck --leak-check=yes -s ./a.out
 
 
@@ -177,6 +177,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
     network_state->hidden_layers = (double**)malloc(hidden_amount * sizeof(double*));
     network_state->hidden_layers[0] = create_next_layer(input, input_size, neural_network->input_weights, hidden_size);
     for(register int i = 0; i < hidden_amount - 1; ++i) {
+        printf("here");
         network_state->hidden_layers[i + 1] = create_next_layer(network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_size);
     }
     network_state->output_layer = create_next_layer(network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_size);
@@ -386,26 +387,28 @@ double* get_output_layer(struct NetworkState* const network_state) {
 int main() {
     printf("Starting...\n");
 
-    struct NeuralNetwork* neural_network = create_network(10, 100, 1000, 9);
+    struct NeuralNetwork* neural_network = create_network(67200, 1, 100, 4);
 
-    double* input = (double*)malloc(10 * sizeof(double));
     for(int i = 0; i < 10; ++i) {
-        input[i] = i + 1;
+        double* input = (double*)malloc(67200 * sizeof(double));
+        for(int j = 0; j < 67200; ++j) {
+            input[j] = j;
+        }
+
+        struct NetworkState* network_state = execute_forward_propagation(neural_network, input);
+
+        double* target = (double*)malloc(4 * sizeof(double));
+        for(int j = 0; j < 4; ++j) {
+            target[j] = network_state->output_layer[j] + 1;
+        }
+
+        execute_back_propagation(neural_network, network_state, target);
+
+        free(target);
+        free_network_state(network_state);
+        free(input);
     }
-
-    struct NetworkState* network_state = execute_forward_propagation(neural_network, input);
-
-    double* target = (double*)malloc(9 * sizeof(double));
-    for(int i = 0; i < 9; ++i) {
-        target[i] = network_state->output_layer[i] + 1;
-    }
-
-    execute_back_propagation(neural_network, network_state, target);
-
     free_neural_network(neural_network);
-    free_network_state(network_state);
-    free(input);
-    free(target);
 
     printf("Finished.\n");
 
