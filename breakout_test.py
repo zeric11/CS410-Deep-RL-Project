@@ -5,7 +5,7 @@ faulthandler.enable()
 
 from typing import List
 import random
-from neural_network import NetworkState, NeuralNetwork
+from neural_network import NetworkState, NeuralNetwork, History
 #from conv_layer import ConvLayer
 import numpy as np
 #from ale_py import ALEInterface
@@ -65,14 +65,14 @@ def main():
     gamma = 0.9
     epsilon = 100
 
-    episodes = 100
+    episodes = 1000
     for episode in range(episodes):
         env_state = generate_unfiltered_input(env.reset())
         prev_env_state = None
         done = False
         score = 0
 
-        history = []
+        history = History()
 
         first_step_done = False
         while not done:
@@ -92,12 +92,12 @@ def main():
             score += reward
 
             if first_step_done:
-                history.insert(0, Event(network_state, action, reward))
+                history.add_event(network_state, action, reward)
             else:
                 first_step_done = True
 
-            if len(history) == 100:
-                update_network(neural_network, history, alpha, gamma)
+            if history.get_length() >= 100:
+                history.update_neural_network(neural_network, alpha, gamma)
             
             prev_env_state = env_state
             env_state = generate_unfiltered_input(observation)
@@ -107,10 +107,9 @@ def main():
 
         print("Episode: {}, Score: {}".format(episode, score))
 
-        update_network(neural_network, history, alpha, gamma)
+        history.update_neural_network(neural_network, alpha, gamma)
 
-        if episode % 5 == 0:
-            epsilon -= 10
+        epsilon -= 1
 
     env.close()
 
@@ -126,6 +125,7 @@ def generate_unfiltered_input(rgb_values) -> List[int]:
     return new_input
 
 
+'''
 # After a game has been completed, we are left with a "history" of network_states.
 # A batch update must be performed to update the neural network where the reward
 # earned at the final action is passed down through the previous actions and 
@@ -147,7 +147,7 @@ def update_network(network: NeuralNetwork, history: List[Event], alpha: float, g
         network.execute_back_progagation(network_state, target)
         
         history.pop(0)
-
+'''
 
 
 
