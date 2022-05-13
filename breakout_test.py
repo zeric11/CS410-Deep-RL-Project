@@ -29,15 +29,6 @@ def repeat_upsample(rgb_array, k=1, l=1, err=[]):
     return np.repeat(np.repeat(rgb_array, k, axis=0), l, axis=1)
 
 
-class Event:
-    def __init__(self, network_state: NetworkState, chosen_action: int, reward: int) -> None:
-        self.network_state = network_state
-        self.chosen_action = chosen_action
-        self.reward = reward
-
-    def __del__(self):
-        del self.network_state
-
 
 def main():
     #ale = ALEInterface()
@@ -59,15 +50,23 @@ def main():
 
     viewer = rendering.SimpleImageViewer()
 
-    neural_network = NeuralNetwork(210 * 160, 1, 100, 4)
+    neural_network = NeuralNetwork((210 - 2) * (160 - 2) * 2, 1, 100, 4)
+    conv_layer = ConvLayer()
+    conv_layer.add_filter([[ 0, 0, 0],
+                           [ 1, 1, 1],
+                           [-1,-1,-1]])
 
-    alpha = 0.5
-    gamma = 0.9
+    alpha = 1
+    gamma = 0.95
     epsilon = 100
+
+    batch_size = 300
 
     episodes = 1000
     for episode in range(episodes):
-        env_state = generate_unfiltered_input(env.reset())
+        #env_state = conv_layer.generate_unfiltered_input(env.reset())
+        env_state = conv_layer.generate_filtered_input(env.reset())
+        print(len(env_state))
         prev_env_state = None
         done = False
         score = 0
@@ -96,11 +95,16 @@ def main():
             else:
                 first_step_done = True
 
-            if history.get_length() >= 100:
+            if history.get_length() >= batch_size:
+                # After certain number of steps has been completed, we are left with a "history" of network_states.
+                # A batch update must be performed to update the neural network where the reward earned at the 
+                # last action is passed down through the previous actions and the network's weights are adjusted 
+                # according to these rewards.
                 history.update_neural_network(neural_network, alpha, gamma)
             
             prev_env_state = env_state
-            env_state = generate_unfiltered_input(observation)
+            #env_state = conv_layer.generate_unfiltered_input(observation)
+            env_state = conv_layer.generate_filtered_input(observation)
 
             if done:
                 break
@@ -114,50 +118,43 @@ def main():
     env.close()
 
 
-def generate_unfiltered_input(rgb_values) -> List[int]:
-    new_input = []
-    for i in range(210):
-        for j in range(160):
-            r = int(rgb_values[i][j][0])
-            g = int(rgb_values[i][j][1])
-            b = int(rgb_values[i][j][2])
-            new_input.append((r + g + b) / 3)
-    return new_input
-
-
-'''
-# After a game has been completed, we are left with a "history" of network_states.
-# A batch update must be performed to update the neural network where the reward
-# earned at the final action is passed down through the previous actions and 
-# the network's weights are adjusted according to these rewards.
-def update_network(network: NeuralNetwork, history: List[Event], alpha: float, gamma: float) -> None:
-    first_event_done = False
-    previous_max_Qvalue = 0
-    while(history):
-        event = history[0]
-        network_state, chosen_action, reward = event.network_state, event.chosen_action, event.reward
-        target = network_state.output_layer.copy()
-        if not first_event_done:
-            target[chosen_action] += alpha * reward
-            first_event_done = True
-        else:
-            target[chosen_action] += \
-                alpha * (reward + (gamma * previous_max_Qvalue) - max(network_state.output_layer))
-        previous_max_Qvalue = max(target)
-        network.execute_back_progagation(network_state, target)
-        
-        history.pop(0)
-'''
 
 
 
+class ConvLayer:
+    def __init__(self) -> None:
+        self.filters = []
 
+    def add_filter(self, filter) -> None:
+        self.filters.append(filter)
 
+    def generate_unfiltered_input(self, rgb_values) -> List[int]:
+        new_input = []
+        for i in range(210):
+            for j in range(160):
+                r = int(rgb_values[i][j][0])
+                g = int(rgb_values[i][j][1])
+                b = int(rgb_values[i][j][2])
+                new_input.append((r + g + b) / 3)
+        return new_input
 
+    def generate_filtered_input(self, rgb_values) -> List[float]:
+        def apply_filter(filter, i_index, j_index) -> float:
+            value = 0
+            for i in range(len(filter)):
+                for j in range(len(filter[0])):
+                    r = int(rgb_values[i + i_index][j + j_index][0])
+                    g = int(rgb_values[i + i_index][j + j_index][1])
+                    b = int(rgb_values[i + i_index][j + j_index][2])
+                    value += filter[i][j] * ((r + g + b) / 3)
+            return value
 
-
-
-
+        new_input = []
+        for filter in self.filters:
+            for i in range(len(rgb_values) - (len(filter) - 1)):
+                for j in range(len(rgb_values[i]) - (len(filter[0]) - 1)):
+                    new_input.append(apply_filter(filter, i, j))
+        return new_input
 
 
 
