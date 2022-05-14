@@ -44,45 +44,52 @@ class c_History(Structure):
 
 
 class NetworkState:
-    def __init__(self, c_state) -> None:
+    def __init__(self, c_network_state) -> None:
         self.c_network_state = POINTER(c_NetworkState)
-        self.c_network_state: c_NetworkState = c_state
-
-        c_lib.get_input_size.argtype = POINTER(c_NetworkState)
-        c_lib.get_input_size.restype = c_int
-        self.input_size: int = c_lib.get_input_size(self.c_network_state)
-
-        c_lib.get_hidden_amount.argtype = POINTER(c_NetworkState)
-        c_lib.get_hidden_amount.restype = c_int
-        self.hidden_amount: int = c_lib.get_hidden_amount(self.c_network_state)
-
-        c_lib.get_hidden_size.argtype = POINTER(c_NetworkState)
-        c_lib.get_hidden_size.restype = c_int
-        self.hidden_size: int = c_lib.get_hidden_size(self.c_network_state)
-
-        c_lib.get_output_size.argtype = POINTER(c_NetworkState)
-        c_lib.get_output_size.restype = c_int
-        self.output_size: int = c_lib.get_output_size(self.c_network_state)
-
-        c_lib.get_input_layer.argtype = POINTER(c_NetworkState)
-        c_lib.get_input_layer.restype = POINTER(c_float * self.input_size)
-        input_layer = c_lib.get_input_layer(self.c_network_state)
-        self.input_layer = [i for i in input_layer.contents]
-
-        c_lib.get_hidden_layers.argtype = POINTER(c_NetworkState)
-        c_lib.get_hidden_layers.restype = POINTER(POINTER(c_float * self.hidden_size) * self.hidden_amount)
-        hidden_layers = c_lib.get_hidden_layers(self.c_network_state)
-        self.hidden_layers = [i for i in hidden_layers.contents]
-
-        c_lib.get_output_layer.argtype = POINTER(c_NetworkState)
-        c_lib.get_output_layer.restype = POINTER(c_float * self.output_size)
-        output_layer = c_lib.get_output_layer(self.c_network_state)
-        self.output_layer = [i for i in output_layer.contents]
+        self.c_network_state: c_NetworkState = c_network_state
 
     def __del__(self):
         if self.c_network_state:
             c_lib.free_network_state.argtype = POINTER(c_NetworkState)
             c_lib.free_network_state(self.c_network_state)
+
+    def get_input_size(self) -> int:
+        c_lib.get_input_size.argtype = POINTER(c_NetworkState)
+        c_lib.get_input_size.restype = c_int
+        return c_lib.get_input_size(self.c_network_state)
+
+    def get_hidden_amount(self) -> int:
+        c_lib.get_hidden_amount.argtype = POINTER(c_NetworkState)
+        c_lib.get_hidden_amount.restype = c_int
+        return c_lib.get_hidden_amount(self.c_network_state)
+
+    def get_hidden_size(self) -> int:
+        c_lib.get_hidden_size.argtype = POINTER(c_NetworkState)
+        c_lib.get_hidden_size.restype = c_int
+        return c_lib.get_hidden_size(self.c_network_state)
+
+    def get_output_size(self) -> int:
+        c_lib.get_output_size.argtype = POINTER(c_NetworkState)
+        c_lib.get_output_size.restype = c_int
+        return c_lib.get_output_size(self.c_network_state)
+
+    def get_input_layer(self) -> List[float]:
+        c_lib.get_input_layer.argtype = POINTER(c_NetworkState)
+        c_lib.get_input_layer.restype = POINTER(c_float * self.input_size)
+        input_layer = c_lib.get_input_layer(self.c_network_state)
+        return [i for i in input_layer.contents]
+
+    def get_hidden_layers(self) -> List[List[float]]:
+        c_lib.get_hidden_layers.argtype = POINTER(c_NetworkState)
+        c_lib.get_hidden_layers.restype = POINTER(POINTER(c_float * self.hidden_size) * self.hidden_amount)
+        hidden_layers = c_lib.get_hidden_layers(self.c_network_state)
+        return [i for i in hidden_layers.contents]
+
+    def get_output_layer(self) -> List[float]:
+        c_lib.get_output_layer.argtype = POINTER(c_NetworkState)
+        c_lib.get_output_layer.restype = POINTER(c_float * self.get_output_size())
+        output_layer = c_lib.get_output_layer(self.c_network_state)
+        return [i for i in output_layer.contents]
 
 
 class NeuralNetwork:

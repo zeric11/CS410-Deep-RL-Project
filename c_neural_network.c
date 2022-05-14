@@ -1,13 +1,15 @@
 // Compile to use with Python:  gcc -fPIC -shared -o c_neural_network.so c_neural_network.c
-// Check for mem-leaks:         valgrind --tool=memcheck --leak-check=yes -s ./a.out
+// Compile for testing:         gcc -g c_neural_network.c -o c_neural_network -lm 
+// Check for mem-leaks:         valgrind --tool=memcheck --leak-check=yes -s ./c_neural_network
 
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 
-const float LEARNING_RATE = 0.1;
-const float MOMENTUM_ENABLED = 1;
+const float LEARNING_RATE = 0.5;
+const float MOMENTUM_ENABLED = 0;
 const float MOMENTUM_VALUE = 0.9;
 
 
@@ -75,6 +77,11 @@ void add_event(struct History* history, struct NetworkState* network_state, int 
 void free_event(struct Event* event);
 void perform_batch_update(struct NeuralNetwork* neural_network, struct History* history, const float alpha, const float gamma);
 void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, float previous_max_Qvalue, const float alpha, const float gamma);
+
+double sigmoid_function(double x);
+double inv_sigmoid_function(double x);
+float* create_sigmoid_array(float* const array, const int size);
+float* create_inv_sigmoid_array(float* const array, const int size);
 float get_max_value(float* const array, const int size);
 
 float* create_float_array(const int size, const float initial_value);
@@ -219,7 +226,7 @@ float* create_next_layer(float* const layer, const int layer_size, float** const
         for(register int j = 0; j < layer_size; ++j) {
             total += layer[j] * weights[j][i];
         }
-        next_layer[i] = total / layer_size;
+        next_layer[i] = sigmoid_function(total);
     }
     return next_layer;
 }
@@ -253,10 +260,10 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
 }
 
 
-float* create_loss(float* const output, float* const target_output, const int output_size) {
+float* create_loss(float* const output, float* const target, const int output_size) {
     float* loss = (float*)malloc(output_size * sizeof(float));
     for(register int i = 0; i < output_size; ++i) {
-        loss[i] = output[i] - target_output[i];
+        loss[i] = output[i] * (1 - output[i]) * (target[i] - output[i]);
     }
     return loss;
 }
@@ -265,14 +272,11 @@ float* create_loss(float* const output, float* const target_output, const int ou
 float* create_error(float* const layer, const int layer_size, float** const weights, float* const previous_error, const int previous_error_size) {
     float* error = (float*)malloc(layer_size * sizeof(float));
     for(register int i = 0; i < layer_size; ++i) {
-        float total = 0;
+        float sum = 0;
         for(register int j = 0; j < previous_error_size; ++j) {
-            //if(previous_error[j] != 0) {
-            //    total += previous_error[j] + (layer[i] * weights[i][j]);
-            //}
-            total += previous_error[j] ? previous_error[j] != 0 + (layer[i] * weights[i][j]) : 0;
+            sum += weights[i][j] * previous_error[j];
         }
-        error[i] = total;
+        error[i] = layer[i] * (1 - layer[i]) * sum;
     }
     return error;
 }
@@ -352,20 +356,59 @@ void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event
     int chosen_action = event->chosen_action;
     int reward = event->reward;
 
-    float* target = create_float_array_copy(network_state->output_layer, network_state->output_size);
+    float* output = create_inv_sigmoid_array(network_state->output_layer, network_state->output_size);
+    float* target_output = create_float_array_copy(output, network_state->output_size);
     if(is_first_event == 1) {
-        target[chosen_action] += alpha * reward;
+        target_output[chosen_action] += alpha * reward;
         is_first_event = 0;
     } else {
-        target[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output_layer, network_state->output_size));
+        target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(output, network_state->output_size));
+        //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - target_output[chosen_action]);
     }
-    previous_max_Qvalue = get_max_value(target, network_state->output_size);
+
+    previous_max_Qvalue = get_max_value(target_output, network_state->output_size);
+    float* target = create_sigmoid_array(target_output, network_state->output_size);
     execute_back_propagation(neural_network, network_state, target);
+    free(output);
+    free(target_output);
     free(target);
 
     preform_batch_update_rec(neural_network, event->next_event, is_first_event, previous_max_Qvalue, alpha, gamma);
     event->next_event = NULL;
     free_event(event);
+}
+
+
+double sigmoid_function(double x) {
+    return 1 / (1 + exp(-x));
+}
+
+
+double inv_sigmoid_function(double x) {
+    if(x <= 0) {
+        return -700;
+    } else if(x >= 1) {
+        return 40;
+    }
+    return log(x) - log(1 - x);
+}
+
+
+float* create_sigmoid_array(float* const array, const int size) {
+    float* sigmoid_array = (float*)malloc(size * sizeof(float));
+    for(register int i = 0; i < size; ++i) {
+        sigmoid_array[i] = (float)sigmoid_function(array[i]);
+    }
+    return sigmoid_array;
+}
+
+
+float* create_inv_sigmoid_array(float* const array, const int size) {
+    float* inv_sigmoid_array = (float*)malloc(size * sizeof(float));
+    for(register int i = 0; i < size; ++i) {
+        inv_sigmoid_array[i] = (float)inv_sigmoid_function(array[i]);
+    }
+    return inv_sigmoid_array;
 }
 
 

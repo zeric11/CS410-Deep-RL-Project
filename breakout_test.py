@@ -64,9 +64,8 @@ def main():
 
     episodes = 1000
     for episode in range(episodes):
-        #env_state = conv_layer.generate_unfiltered_input(env.reset())
-        env_state = conv_layer.generate_filtered_input(env.reset())
-        print(len(env_state))
+        env_state = conv_layer.generate_unfiltered_input(env.reset())
+        #env_state = conv_layer.generate_filtered_input(env.reset())
         prev_env_state = None
         done = False
         score = 0
@@ -85,7 +84,7 @@ def main():
                 if random.randrange(0, 100) < epsilon:
                     action = random.randrange(0, 4)
                 else:
-                    action = np.argmax(network_state.output_layer)
+                    action = np.argmax(network_state.get_output_layer())
 
             observation, reward, done, info = env.step(action)
             score += reward
@@ -103,8 +102,8 @@ def main():
                 history.update_neural_network(neural_network, alpha, gamma)
             
             prev_env_state = env_state
-            #env_state = conv_layer.generate_unfiltered_input(observation)
-            env_state = conv_layer.generate_filtered_input(observation)
+            env_state = conv_layer.generate_unfiltered_input(observation)
+            #env_state = conv_layer.generate_filtered_input(observation)
 
             if done:
                 break
