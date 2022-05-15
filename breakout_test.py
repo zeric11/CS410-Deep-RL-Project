@@ -50,17 +50,17 @@ def main():
 
     viewer = rendering.SimpleImageViewer()
 
-    neural_network = NeuralNetwork((210 - 2) * (160 - 2) * 2, 1, 100, 4)
+    neural_network = NeuralNetwork((210 - 2) * (160 - 2) * 2, 1, 50, 4)
     conv_layer = ConvLayer()
     conv_layer.add_filter([[ 0, 0, 0],
                            [ 1, 1, 1],
                            [-1,-1,-1]])
 
     alpha = 1
-    gamma = 0.95
+    gamma = 0.9
     epsilon = 100
 
-    batch_size = 300
+    batch_size = 30
 
     episodes = 1000
     for episode in range(episodes):
@@ -84,7 +84,9 @@ def main():
                 if random.randrange(0, 100) < epsilon:
                     action = random.randrange(0, 4)
                 else:
-                    action = np.argmax(network_state.get_output_layer())
+                    output = network_state.get_output()
+                    print(output)
+                    action = np.argmax(output)
 
             observation, reward, done, info = env.step(action)
             score += reward
@@ -110,9 +112,10 @@ def main():
 
         print("Episode: {}, Score: {}".format(episode, score))
 
-        history.update_neural_network(neural_network, alpha, gamma)
+        while history.get_length() > 0:
+            history.update_neural_network(neural_network, alpha, gamma)
 
-        epsilon -= 1
+        epsilon -= 10
 
     env.close()
 
