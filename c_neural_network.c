@@ -76,6 +76,7 @@ struct History* create_history();
 void free_history(struct History* history);
 void add_event(struct History* history, struct NetworkState* network_state, int chosen_action, double reward);
 void free_event(struct Event* event);
+void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struct History* history, int pop_amount, const double alpha, const double gamma);
 void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void perform_batch_update_pop_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, double previous_max_Qvalue, const double alpha, const double gamma);
@@ -244,7 +245,7 @@ double* create_next_layer(double* const layer, const int layer_size, double** co
         for(register int j = 0; j < layer_size; ++j) {
             total += layer[j] * weights[j][i];
         }
-        next_layer[i] = sigmoid_function(total);
+        next_layer[i] = sigmoid_function((double)(total));
     }
     return next_layer;
 }
@@ -314,11 +315,11 @@ double* create_loss(double* const output, double* const target, const int output
 double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size) {
     double* error = (double*)malloc(layer_size * sizeof(double));
     for(register int i = 0; i < layer_size; ++i) {
-        double sum = 0;
+        long double sum = 0;
         for(register int j = 0; j < previous_error_size; ++j) {
             sum += weights[i][j] * previous_error[j];
         }
-        error[i] = layer[i] * (1 - layer[i]) * sum;
+        error[i] = layer[i] * (1 - layer[i]) * (double)(sum);
     }
     return error;
 }
@@ -331,10 +332,10 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
 
     for(register int i = 0; i < layer_size; ++i) {
         for(register int j = 0; j < error_size; ++j) {
-            double new_value = weights[i][j] + (learning_rate * layer[i] * error[j]);
+            long double new_value = weights[i][j] + (learning_rate * layer[i] * error[j]);
             new_value += momentum_enabled ? momentum_value * delta_weights[i][j] : 0;
-            delta_weights[i][j] = weights[i][j] - new_value;
-            weights[i][j] = new_value;
+            delta_weights[i][j] = weights[i][j] - (double)(new_value);
+            weights[i][j] = (double)(new_value);
         }
     }
 }
@@ -381,6 +382,56 @@ void free_event(struct Event* event) {
         free(event);
     }
     event = NULL;
+}
+
+
+void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struct History* history, int pop_amount, const double alpha, const double gamma) {
+    struct Event* event = history->event_head;
+    struct Event* last_event = NULL;
+    double max_next_state_Qvalue = 0;
+
+    for(register int i = 0; i < history->size; ++i) {
+        struct NetworkState* network_state = event->network_state;
+        int chosen_action = event->chosen_action;
+        int reward = event->reward;
+
+        double* target_output = create_double_array_copy(network_state->output, network_state->output_size);
+
+        /*
+        if(i == 0) {
+            //target_output[chosen_action] += alpha * reward;
+            //target_output[chosen_action] = alpha * reward;
+            //target_output[chosen_action] = alpha * (reward + target_output[chosen_action]);
+        } else {
+            //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - target_output[chosen_action]);
+            //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
+            //target_output[chosen_action] = alpha * (reward + (gamma * next_state_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
+            //target_output[chosen_action] = alpha * (reward + (gamma * next_state_max_Qvalue) - target_output[chosen_action]);
+        }
+        */
+
+        target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * max_next_state_Qvalue)));
+
+        max_next_state_Qvalue = get_max_value(target_output, network_state->output_size);
+        double* target = create_sigmoid_array(target_output, network_state->output_size);
+        execute_back_propagation(neural_network, network_state, target);
+        free(target_output);
+        free(target);
+
+        if(i == history->size - pop_amount - 1) {
+            last_event = event;
+        }
+
+        event = event->next_event;
+    }
+    if(last_event) {
+        free_event(last_event->next_event);
+        last_event->next_event = NULL;
+    } else {
+        free_event(history->event_head);
+        history->event_head = NULL;
+    }
+    history->size -= pop_amount;
 }
 
 
@@ -479,22 +530,6 @@ void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event
     free_event(event);
 }
 
-/*
-double sigmoid_function(double x) {
-    return 1 / (1 + exp(-x));
-}
-
-
-double inv_sigmoid_function(double x) {
-    if(x <= 0) {
-        return -700;
-    } else if(x >= 1) {
-        return 40;
-    }
-    return log(x) - log(1 - x);
-}
-*/
-
 
 double sigmoid_function(double x) {
     if(x < -700) {
@@ -502,7 +537,7 @@ double sigmoid_function(double x) {
     } else if(x > 36) {
         return 1;
     }
-    return 1 / (1 + exp(-x));
+    return 1 / (1 + (double)exp(-x));
 }
 
 
@@ -512,7 +547,7 @@ double inv_sigmoid_function(double x) {
     } else if(x > 0.999999999999999) {
         return 36;
     }
-    return log(x) - log(1 - x);
+    return (double)log(x) - (double)log(1 - x);
 }
 
 
@@ -742,12 +777,12 @@ int main() {
         add_event(history, network_state, chosen_action, reward);
         
         if(get_history_size(history) >= 30) {
-            perform_batch_update_pop_last(neural_network, history, 0.5, 0.9);
+            perform_batch_update_pop_amount(neural_network, history, 15, 0.5, 0.9);
         }
     }
 
     while(history->size > 0) {
-        perform_batch_update_pop_last(neural_network, history, 0.5, 0.9);
+        perform_batch_update_pop_amount(neural_network, history, 15, 0.5, 0.9);
     }
 
     free_history(history);

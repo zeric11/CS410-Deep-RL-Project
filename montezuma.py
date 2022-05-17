@@ -3,7 +3,7 @@
 import faulthandler
 faulthandler.enable()
 
-from typing import List
+from typing import List, Tuple
 import random
 from neural_network import NetworkState, NeuralNetwork, History
 #from conv_layer import ConvLayer
@@ -11,6 +11,7 @@ import numpy as np
 #from ale_py import ALEInterface
 import gym
 from gym.envs.classic_control import rendering
+import matplotlib.pyplot as plt
 
 
 class ConvLayer:
@@ -75,8 +76,8 @@ def main():
     params.env_name = "MontezumaRevenge-v0"
     params.neural_network = None
     params.input_size = 210 * 160 * 2
-    params.hidden_amount = 1
-    params.hidden_size = 50
+    params.hidden_amount = 3
+    params.hidden_size = 100
     params.output_size = 18
     params.learning_rate = 0.1
     params.momentum_value = 0.9
@@ -85,7 +86,7 @@ def main():
     params.gamma = 0.9
     params.epsilon = 100
     params.epsilon_decay = 5
-    params.batch_size = 30
+    params.batch_size = 150
     params.episodes_amount = 1000
     params.display_outputs_enabled = False
     params.conv_layer = ConvLayer()
@@ -94,10 +95,16 @@ def main():
                                   [ 1, 1, 1],
                                   [-1,-1,-1]])
 
-    training(params)
+    x_values, y_values = training(params)
+    plt.plot(x_values, y_values)
+    plt.xlabel("Episode")
+    plt.ylabel("Score")
+    plt.title("Test 1")
+    plt.savefig()
+    plt.show()
 
 
-def training(params: TrainingParams):
+def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     env = gym.make(params.env_name, render_mode="rgb_array")
     if not params.neural_network:
         params.neural_network = NeuralNetwork(params.input_size, params.hidden_amount, params.hidden_size, params.output_size, \
@@ -115,9 +122,13 @@ def training(params: TrainingParams):
     print("action_space:", action_space)
     print("actions:", env.unwrapped.get_action_meanings())
 
+    x_values = []
+    y_values = []
+
     epsilon = params.epsilon
     for episode in range(params.episodes_amount):
         history = History()
+        pop_amount = int(params.batch_size / 2)
 
         env_state = None
         if params.filters_enabled:
@@ -169,7 +180,7 @@ def training(params: TrainingParams):
                 # A batch update must be performed to update the neural network where the reward earned at the 
                 # last action is passed down through the previous actions and the network's weights are adjusted 
                 # according to these rewards.
-                history.update_neural_network_pop_last(params.neural_network, params.alpha, params.gamma)
+                history.update_neural_network_pop_amount(params.neural_network, pop_amount, params.alpha, params.gamma)
             
             prev_env_state = env_state
             if params.filters_enabled:
@@ -180,12 +191,14 @@ def training(params: TrainingParams):
             step_number += 1
             afk_counter += 1
 
-        print("Episode: {}, Score: {}".format(episode + 1, score))
-
         while history.get_length() > 0:
-            history.update_neural_network_pop_last(params.neural_network, params.alpha, params.gamma)
+            history.update_neural_network_pop_amount(params.neural_network, pop_amount, params.alpha, params.gamma)
 
         epsilon -= params.epsilon_decay
+
+        print("Episode: {}, Score: {}".format(episode + 1, score))
+        x_values.append(episode + 1)
+        y_values.append(score)
 
     env.close()
 
