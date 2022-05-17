@@ -1,16 +1,12 @@
-// Compile to use with Python:  gcc -fPIC -shared -o c_neural_network.so c_neural_network.c
-// Compile for testing:         gcc -g c_neural_network.c -o c_neural_network -lm 
+// Compile to use with Python:  gcc -Ofast -fPIC -shared -o c_neural_network.so c_neural_network.c
+// Compile for testing:         gcc -Ofast -g c_neural_network.c -o c_neural_network -lm
 // Check for mem-leaks:         valgrind --tool=memcheck --leak-check=yes -s ./c_neural_network
 
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
-
-const double LEARNING_RATE = 0.1;
-const double MOMENTUM_ENABLED = 0;
-const double MOMENTUM_VALUE = 0.9;
+#include <time.h>
 
 
 struct NetworkState {
@@ -36,6 +32,10 @@ struct NeuralNetwork {
     int hidden_size;
     int output_size;
 
+    double learning_rate;
+    double momentum_value;
+    int momentum_enabled;
+
     double** input_weights;
     double*** hidden_weights;
     double** output_weights;
@@ -60,7 +60,7 @@ struct History {
 };
 
 
-struct NeuralNetwork* create_network(const int input_size, const int hidden_amount, const int hidden_size, const int output_size);
+struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled);
 void free_neural_network(struct NeuralNetwork* neural_network);
 
 struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input);
@@ -70,14 +70,14 @@ void free_network_state(struct NetworkState* network_state);
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
 double* create_loss(double* const output, double* const target_output, const int output_size);
 double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
-void update_weights(double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size);
+void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size);
 
 struct History* create_history();
 void free_history(struct History* history);
 void add_event(struct History* history, struct NetworkState* network_state, int chosen_action, double reward);
 void free_event(struct Event* event);
 void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
-void perform_batch_update_clear(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
+void perform_batch_update_pop_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, double previous_max_Qvalue, const double alpha, const double gamma);
 
 double sigmoid_function(double x);
@@ -85,11 +85,13 @@ double inv_sigmoid_function(double x);
 double* create_sigmoid_array(double* const array, const int size);
 double* create_inv_sigmoid_array(double* const array, const int size);
 double get_max_value(double* const array, const int size);
+int get_max_index(double* const array, const int size);
 
 double* create_double_array(const int size, const double initial_value);
 double** create_2D_double_array(const int i_size, const int j_size, const double initial_value);
 double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const double initial_value);
 
+double get_random_double(double min, double max);
 double* create_double_array_copy(double* const array, const int size);
 double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size);
 double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size);
@@ -106,15 +108,24 @@ double* get_input_layer(struct NetworkState* const network_state);
 double** get_hidden_layers(struct NetworkState* const network_state);
 double* get_output_layer(struct NetworkState* const network_state);
 double* get_output(struct NetworkState* const network_state);
+int choose_action(struct NetworkState* const network_state);
+
+void display_output(struct NetworkState* const network_state);
 
 
-struct NeuralNetwork* create_network(const int input_size, const int hidden_amount, const int hidden_size, const int output_size) {
+struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled) {
     struct NeuralNetwork* neural_network = (struct NeuralNetwork*)malloc(sizeof(struct NeuralNetwork));
 
     neural_network->input_size = input_size;
     neural_network->hidden_amount = hidden_amount;
     neural_network->hidden_size = hidden_size;
     neural_network->output_size = output_size;
+
+    neural_network->learning_rate = learning_rate;
+    neural_network->momentum_value = momentum_value;
+    neural_network->momentum_enabled = momentum_enabled;
+
+    srand((int)time(NULL));
 
     // Allocating weights.
     neural_network->input_weights = create_2D_double_array(input_size, hidden_size, 0);
@@ -229,7 +240,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
 double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size) {
     double* next_layer = (double*)malloc(next_layer_size * sizeof(double));
     for(register int i = 0; i < next_layer_size; ++i) {
-        double total = 0;
+        long double total = 0;
         for(register int j = 0; j < layer_size; ++j) {
             total += layer[j] * weights[j][i];
         }
@@ -255,12 +266,36 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
 
     // Current weights are updated based on the errors calculated from the weights and layers
     // that were saved into network_state during the forward propagation step.
-    update_weights(network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, neural_network->delta_output_weights, output_error, output_size);
+    double* layer, *error;
+    int layer_size, error_size;
+    double** weights, **delta_weights;
+
+    layer = network_state->hidden_layers[hidden_amount - 1];
+    layer_size = hidden_size;
+    weights = neural_network->output_weights;
+    delta_weights = neural_network->delta_output_weights;
+    error = output_error;
+    error_size = output_size;
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
+
     for(register int i = 1; i < hidden_amount; ++i) {
         int index = hidden_amount - 1 - i;
-        update_weights(network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], neural_network->delta_hidden_weights[index], hidden_errors[i], hidden_size);
+        layer = network_state->hidden_layers[index];
+        layer_size = hidden_size;
+        weights = neural_network->hidden_weights[index];
+        delta_weights = neural_network->delta_hidden_weights[index];
+        error = hidden_errors[i];
+        error_size = hidden_size;
+        update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
     }
-    update_weights(network_state->input_layer, input_size, neural_network->input_weights, neural_network->delta_input_weights, hidden_errors[0], hidden_size);
+
+    layer = network_state->input_layer;
+    layer_size = input_size;
+    weights = neural_network->input_weights;
+    delta_weights = neural_network->delta_input_weights;
+    error = hidden_errors[0];
+    error_size = hidden_size;
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
 
     free_2D_double_array(hidden_errors, hidden_amount);
     free(output_error);
@@ -289,11 +324,15 @@ double* create_error(double* const layer, const int layer_size, double** const w
 }
 
 
-void update_weights(double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size) {
+void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size) {
+    double learning_rate = neural_network->learning_rate;
+    double momentum_value = neural_network->momentum_value;
+    int momentum_enabled = neural_network->momentum_enabled;
+
     for(register int i = 0; i < layer_size; ++i) {
         for(register int j = 0; j < error_size; ++j) {
-            double new_value = weights[i][j] + (LEARNING_RATE * layer[i] * error[j]);
-            new_value += MOMENTUM_ENABLED ? MOMENTUM_VALUE * delta_weights[i][j] : 0;
+            double new_value = weights[i][j] + (learning_rate * layer[i] * error[j]);
+            new_value += momentum_enabled ? momentum_value * delta_weights[i][j] : 0;
             delta_weights[i][j] = weights[i][j] - new_value;
             weights[i][j] = new_value;
         }
@@ -348,7 +387,7 @@ void free_event(struct Event* event) {
 void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
     struct Event* event = history->event_head;
     struct Event* previous_event = NULL;
-    double previous_max_Qvalue = 0;
+    double max_next_state_Qvalue = 0;
 
     for(register int i = 0; i < history->size; ++i) {
         struct NetworkState* network_state = event->network_state;
@@ -356,14 +395,23 @@ void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct 
         int reward = event->reward;
 
         double* target_output = create_double_array_copy(network_state->output, network_state->output_size);
-        if(i == 0) {
-            target_output[chosen_action] += alpha * reward;
-        } else {
-            target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
-            //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - target_output[chosen_action]);
-        }
 
-        previous_max_Qvalue = get_max_value(target_output, network_state->output_size);
+        /*
+        if(i == 0) {
+            //target_output[chosen_action] += alpha * reward;
+            //target_output[chosen_action] = alpha * reward;
+            //target_output[chosen_action] = alpha * (reward + target_output[chosen_action]);
+        } else {
+            //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - target_output[chosen_action]);
+            //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
+            //target_output[chosen_action] = alpha * (reward + (gamma * next_state_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
+            //target_output[chosen_action] = alpha * (reward + (gamma * next_state_max_Qvalue) - target_output[chosen_action]);
+        }
+        */
+
+        target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * max_next_state_Qvalue)));
+
+        max_next_state_Qvalue = get_max_value(target_output, network_state->output_size);
         double* target = create_sigmoid_array(target_output, network_state->output_size);
         execute_back_propagation(neural_network, network_state, target);
         free(target_output);
@@ -386,7 +434,7 @@ void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct 
 }
 
 
-void perform_batch_update_clear(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
+void perform_batch_update_pop_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
     if(history->event_head) {
         preform_batch_update_rec(neural_network, history->event_head, 1, 0, alpha, gamma);
     }
@@ -395,7 +443,7 @@ void perform_batch_update_clear(struct NeuralNetwork* neural_network, struct His
 }
 
 
-void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, double previous_max_Qvalue, const double alpha, const double gamma) {
+void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, double max_next_state_Qvalue, const double alpha, const double gamma) {
     if(!event) {
         return;
     }
@@ -405,26 +453,33 @@ void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event
     int reward = event->reward;
 
     double* target_output = create_double_array_copy(network_state->output, network_state->output_size);
+
+    /*
     if(is_first_event == 1) {
-        target_output[chosen_action] += alpha * reward;
+        //target_output[chosen_action] += alpha * reward;
+        target_output[chosen_action] = alpha * reward;
         is_first_event = 0;
     } else {
-        target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
         //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - target_output[chosen_action]);
+        //target_output[chosen_action] += alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
+        target_output[chosen_action] = alpha * (reward + (gamma * previous_max_Qvalue) - get_max_value(network_state->output, network_state->output_size));
     }
+    */
 
-    previous_max_Qvalue = get_max_value(target_output, network_state->output_size);
+    target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * max_next_state_Qvalue)));
+
+    max_next_state_Qvalue = get_max_value(target_output, network_state->output_size);
     double* target = create_sigmoid_array(target_output, network_state->output_size);
     execute_back_propagation(neural_network, network_state, target);
     free(target_output);
     free(target);
 
-    preform_batch_update_rec(neural_network, event->next_event, is_first_event, previous_max_Qvalue, alpha, gamma);
+    preform_batch_update_rec(neural_network, event->next_event, is_first_event, max_next_state_Qvalue, alpha, gamma);
     event->next_event = NULL;
     free_event(event);
 }
 
-
+/*
 double sigmoid_function(double x) {
     return 1 / (1 + exp(-x));
 }
@@ -435,6 +490,27 @@ double inv_sigmoid_function(double x) {
         return -700;
     } else if(x >= 1) {
         return 40;
+    }
+    return log(x) - log(1 - x);
+}
+*/
+
+
+double sigmoid_function(double x) {
+    if(x < -700) {
+        return 0;
+    } else if(x > 36) {
+        return 1;
+    }
+    return 1 / (1 + exp(-x));
+}
+
+
+double inv_sigmoid_function(double x) {
+    if(x < 1.0E-304) {
+        return -700;
+    } else if(x > 0.999999999999999) {
+        return 36;
     }
     return log(x) - log(1 - x);
 }
@@ -467,10 +543,34 @@ double get_max_value(double* const array, const int size) {
 }
 
 
+int get_max_index(double* const array, const int size) {
+    double max_value = array[0];
+    int max_index = 0;
+    for(register int i = 1; i < size; ++i) {
+        if(array[i] > max_value) {
+            max_value = array[i];
+            max_index = i;
+        }
+    }
+    return max_index;
+}
+
+
+double get_random_double(double min, double max) {
+    if(min > max) {
+        return 0; 
+    } else if(min == max) {
+        return min;
+    }
+    return (double)((((double)rand()/(double)(RAND_MAX)) * (max - min)) + min);
+}
+
+
 double* create_double_array(const int size, const double initial_value) {
     double* new_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        new_array[i] = initial_value;
+        //new_array[i] = initial_value;
+        new_array[i] = get_random_double(-0.5, 0.5);
     }
     return new_array;
 }
@@ -497,7 +597,7 @@ double*** create_3D_double_array(const int i_size, const int j_size, const int k
 double* create_double_array_copy(double* const array, const int size) {
     double* new_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        new_array[i] = array[i];
+        new_array[i] = (double)array[i];
     }
     return new_array;
 }
@@ -591,26 +691,59 @@ double* get_output(struct NetworkState* const network_state) {
 }
 
 
-/*
+int choose_action(struct NetworkState* const network_state) {
+    return get_max_index(network_state->output, network_state->output_size);
+}
+
+
 // For testing...
+
+void display_output(struct NetworkState* const network_state) {
+    printf("[");
+    for(register int i = 0; i < network_state->output_size; ++i) {
+        printf(" %lf ", network_state->output[i]);
+    }
+    printf("]");
+    printf("\t");
+    printf("[");
+    for(register int i = 0; i < network_state->output_size; ++i) {
+        printf(" %lf ", network_state->output_layer[i]);
+    }
+    printf("]");
+    fflush(stdout);
+}
+
+
 int main() {
     printf("Starting...\n");
 
-    struct NeuralNetwork* neural_network = create_network(67200, 1, 100, 4);
+    struct NeuralNetwork* neural_network = create_network(210 * 160 * 2, 1, 50, 4, 0.1, 0.9, 0);
     struct History* history = create_history();
 
-    for(int i = 0; i < 100; ++i) {
-        double* input = (double*)malloc(67200 * sizeof(double));
-        for(int j = 0; j < 67200; ++j) {
-            input[j] = j;
+    for(int i = 0; i < 1000; ++i) {
+        double input[210 * 160 * 2];
+        for(register int j = 0; j < 210 * 160 * 2; ++j) {
+            input[j] = 255;
         }
 
         struct NetworkState* network_state = execute_forward_propagation(neural_network, input);
-        int chosen_action = i % 4;
-        double reward = 10 - chosen_action;
+        double* output = get_output(network_state);
+        int chosen_action = get_max_index(output, get_output_size(network_state));
+        double reward = -10;
+
+        if(i > 75) {
+            reward = 10;
+        }
+
+        printf("Step: %d, [", i + 1);
+        display_output(network_state);
+        printf("], action: %d, reward: %lf\n", chosen_action, reward);
+
         add_event(history, network_state, chosen_action, reward);
         
-        free(input);
+        if(get_history_size(history) >= 30) {
+            perform_batch_update_pop_last(neural_network, history, 0.5, 0.9);
+        }
     }
 
     while(history->size > 0) {
@@ -624,4 +757,3 @@ int main() {
 
     return 0;
 }
-*/

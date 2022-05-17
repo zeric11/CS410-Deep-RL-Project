@@ -97,13 +97,23 @@ class NetworkState:
         output = c_lib.get_output(self.c_network_state)
         return [i for i in output.contents]
 
+    def choose_action(self) -> int:
+        c_lib.get_output.argtype = POINTER(c_NetworkState)
+        c_lib.get_output.restype = c_int
+        return c_lib.choose_action(self.c_network_state)
+
+    def display_output(self) -> int:
+        c_lib.get_output.argtype = POINTER(c_NetworkState)
+        c_lib.display_output(self.c_network_state)
+
 
 class NeuralNetwork:
-    def __init__(self, input_size: int, hidden_amount: int, hidden_size: int, output_size: int) -> None:
+    def __init__(self, input_size: int, hidden_amount: int, hidden_size: int, output_size: int, learning_rate: float, momentum_value: float, momentum_enabled: bool) -> None:
         self.c_neural_network = POINTER(c_NeuralNetwork)
-        c_lib.create_network.argtypes = (c_int, c_int, c_int, c_int)
+        c_lib.create_network.argtypes = (c_int, c_int, c_int, c_int, c_double, c_double, c_int)
         c_lib.create_network.restype = POINTER(c_NeuralNetwork)
-        self.c_neural_network = c_lib.create_network(input_size, hidden_amount, hidden_size, output_size)
+        c_momentum_enabled = 1 if momentum_enabled else 0
+        self.c_neural_network = c_lib.create_network(input_size, hidden_amount, hidden_size, output_size, learning_rate, momentum_value, c_momentum_enabled)
 
     def __del__(self):
         c_lib.free_neural_network.argtype = POINTER(c_NeuralNetwork)
@@ -142,9 +152,11 @@ class History:
         c_lib.add_event(self.c_history, network_state.c_network_state, chosen_action, reward)
         network_state.c_network_state = None
 
-
-    def update_neural_network(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
-        #c_lib.perform_batch_update_clear.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
-        #c_lib.perform_batch_update_clear(neural_network.c_neural_network, self.c_history, alpha, gamma)
+    def update_neural_network_pop_last(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
         c_lib.perform_batch_update_pop_last.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
         c_lib.perform_batch_update_pop_last(neural_network.c_neural_network, self.c_history, alpha, gamma)
+
+    def update_neural_network_pop_all(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
+        c_lib.perform_batch_update_pop_all.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
+        c_lib.perform_batch_update_pop_all(neural_network.c_neural_network, self.c_history, alpha, gamma)
+
