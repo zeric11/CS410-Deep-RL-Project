@@ -2,7 +2,7 @@ from typing import List
 from ctypes import *
 
 
-c_lib = cdll.LoadLibrary("./c_neural_network.so")
+c_lib = cdll.LoadLibrary("./c_DQN/c_neural_network.so")
 
 
 class c_NetworkState(Structure):

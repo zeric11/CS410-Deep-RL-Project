@@ -5,7 +5,7 @@ faulthandler.enable()
 
 from typing import List, Tuple
 import random
-from neural_network import NetworkState, NeuralNetwork, History
+from DQN import NetworkState, NeuralNetwork, History
 #from conv_layer import ConvLayer
 import numpy as np
 #from ale_py import ALEInterface
@@ -82,12 +82,12 @@ def main():
     params.learning_rate = 0.1
     params.momentum_value = 0.9
     params.momentum_enabled = False
-    params.alpha = 0.5
-    params.gamma = 0.9
+    params.alpha = 1
+    params.gamma = 0.95
     params.epsilon = 100
     params.epsilon_decay = 5
     params.batch_size = 150
-    params.episodes_amount = 1000
+    params.episodes_amount = 100
     params.display_outputs_enabled = True
     params.conv_layer = ConvLayer()
     params.filters_enabled = False
