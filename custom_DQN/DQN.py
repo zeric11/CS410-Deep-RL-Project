@@ -152,15 +152,15 @@ class History:
         c_lib.add_event(self.c_history, network_state.c_network_state, chosen_action, reward)
         network_state.c_network_state = None
 
-    def update_neural_network_pop_amount(self, neural_network: NeuralNetwork, pop_amount: int, alpha: float, gamma: float) -> None:
-        c_lib.perform_batch_update_pop_amount.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_int, c_double, c_double)
-        c_lib.perform_batch_update_pop_amount(neural_network.c_neural_network, self.c_history, pop_amount, alpha, gamma)
+    #def update_neural_network_pop_amount(self, neural_network: NeuralNetwork, pop_amount: int, alpha: float, gamma: float) -> None:
+    #    c_lib.perform_batch_update_pop_amount.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_int, c_double, c_double)
+    #    c_lib.perform_batch_update_pop_amount(neural_network.c_neural_network, self.c_history, pop_amount, alpha, gamma)
 
-    def update_neural_network_pop_last(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
-        c_lib.perform_batch_update_pop_last.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
-        c_lib.perform_batch_update_pop_last(neural_network.c_neural_network, self.c_history, alpha, gamma)
+    def update_neural_network_last_event(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
+        c_lib.perform_batch_update_last.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
+        c_lib.perform_batch_update_last(neural_network.c_neural_network, self.c_history, alpha, gamma)
 
-    def update_neural_network_pop_all(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
-        c_lib.perform_batch_update_pop_all.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
-        c_lib.perform_batch_update_pop_all(neural_network.c_neural_network, self.c_history, alpha, gamma)
+    def update_neural_network_all_events(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
+        c_lib.perform_batch_update_all.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
+        c_lib.perform_batch_update_all(neural_network.c_neural_network, self.c_history, alpha, gamma)
 

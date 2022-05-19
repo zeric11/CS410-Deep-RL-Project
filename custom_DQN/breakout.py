@@ -128,7 +128,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     epsilon = params.epsilon
     for episode in range(params.episodes_amount):
         history = History()
-        pop_amount = int(params.batch_size / 2)
 
         env_state = None
         if params.filters_enabled:
@@ -180,7 +179,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 # A batch update must be performed to update the neural network where the reward earned at the 
                 # last action is passed down through the previous actions and the network's weights are adjusted 
                 # according to these rewards.
-                history.update_neural_network_pop_amount(params.neural_network, pop_amount, params.alpha, params.gamma)
+                history.update_neural_network_last_event(params.neural_network, params.alpha, params.gamma)
             
             prev_env_state = env_state
             if params.filters_enabled:
@@ -191,8 +190,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
             step_number += 1
             afk_counter += 1
 
-        while history.get_length() > 0:
-            history.update_neural_network_pop_amount(params.neural_network, pop_amount, params.alpha, params.gamma)
+        history.update_neural_network_all_events(params.neural_network, params.alpha, params.gamma)
 
         epsilon -= params.epsilon_decay
 

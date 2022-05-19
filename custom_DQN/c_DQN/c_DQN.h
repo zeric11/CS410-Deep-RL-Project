@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <math.h>
 #include <time.h>
 
@@ -19,13 +21,15 @@ struct NetworkState {
     double* output_layer;
     double* output;
 
-    double** input_weights;
-    double*** hidden_weights;
-    double** output_weights;
+    //double** input_weights;
+    //double*** hidden_weights;
+    //double** output_weights;
 };
 
 
 struct NeuralNetwork {
+    int max_threads;
+
     int input_size;
     int hidden_amount;
     int hidden_size;
@@ -63,22 +67,23 @@ struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidd
 void free_neural_network(struct NeuralNetwork* neural_network);
 
 struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input);
-double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size);
+double* create_next_layer(struct NeuralNetwork* const neural_network, double* const layer, const int layer_size, double** const weights, const int next_layer_size);
+void* create_next_layer_thread(void* params_ptr);
 void free_network_state(struct NetworkState* network_state);
 
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
 double* create_loss(double* const output, double* const target_output, const int output_size);
 double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
 void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size);
+void* update_weights_thread(void* params_ptr);
 
 struct History* create_history();
 void free_history(struct History* history);
 void add_event(struct History* history, struct NetworkState* network_state, int chosen_action, double reward);
 void free_event(struct Event* event);
 void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struct History* history, int pop_amount, const double alpha, const double gamma);
-void perform_batch_update_pop_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
-void perform_batch_update_pop_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
-void preform_batch_update_rec(struct NeuralNetwork* neural_network, struct Event* event, short is_first_event, double previous_max_Qvalue, const double alpha, const double gamma);
+void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
+void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 
 double sigmoid_function(double x);
 double inv_sigmoid_function(double x);
