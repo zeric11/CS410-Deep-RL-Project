@@ -5,7 +5,7 @@ int main() {
     printf("Running Test...");
     fflush(stdout);
 
-    struct NeuralNetwork* neural_network = create_network(210 * 160 * 2, 1, 50, 4, 0.1, 0.9, 0);
+    struct NeuralNetwork* neural_network = create_network(210 * 160 * 2, 4, 100, 4, 0.1, 0.9, 0);
     struct History* history = create_history();
 
     for(int i = 0; i < 100; ++i) {

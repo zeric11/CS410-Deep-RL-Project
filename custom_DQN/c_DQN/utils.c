@@ -11,13 +11,20 @@ double sigmoid_function(double x) {
 }
 
 
-double inv_sigmoid_function(double x) {
+double invsigmoid_function(double x) {
     if(x < 1.2E-308) {
         return -709;
     } else if(x > 0.9999999999999999) {
         return 37;
     }
     return (double)((long double)(log(x)) - (long double)(log(1 - x)));
+}
+
+
+void apply_sigmoid_to_array(double* dest_array, double* src_array, const int size) {
+    for(register int i = 0; i < size; ++i) {
+        dest_array[i] = (double)sigmoid_function(src_array[i]);
+    }
 }
 
 
@@ -30,10 +37,17 @@ double* create_sigmoid_array(double* const array, const int size) {
 }
 
 
-double* create_inv_sigmoid_array(double* const array, const int size) {
+void apply_invsigmoid_to_array(double* dest_array, double* src_array, const int size) {
+    for(register int i = 0; i < size; ++i) {
+        dest_array[i] = (double)invsigmoid_function(src_array[i]);
+    }
+}
+
+
+double* create_invsigmoid_array(double* const array, const int size) {
     double* inv_sigmoid_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        inv_sigmoid_array[i] = (double)inv_sigmoid_function(array[i]);
+        inv_sigmoid_array[i] = (double)invsigmoid_function(array[i]);
     }
     return inv_sigmoid_array;
 }
@@ -96,6 +110,13 @@ double*** create_3D_double_array(const int i_size, const int j_size, const int k
         new_array[i] = create_2D_double_array(j_size, k_size, initial_value);
     }
     return new_array;
+}
+
+
+void copy_double_array(double* dest_array, double* const src_array, const int size) {
+    for(register int i = 0; i < size; ++i) {
+        dest_array[i] = (double)src_array[i];
+    }
 }
 
 

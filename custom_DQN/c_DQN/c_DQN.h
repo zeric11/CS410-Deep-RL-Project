@@ -72,6 +72,7 @@ void* create_next_layer_thread(void* params_ptr);
 void free_network_state(struct NetworkState* network_state);
 
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
+void get_loss(double* loss, double* const output, double* const target, const int output_size);
 double* create_loss(double* const output, double* const target_output, const int output_size);
 double* create_error(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
 void* create_error_thread(void* params_ptr);
@@ -82,14 +83,16 @@ struct History* create_history();
 void free_history(struct History* history);
 void add_event(struct History* history, struct NetworkState* network_state, int chosen_action, double reward);
 void free_event(struct Event* event);
-void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struct History* history, int pop_amount, const double alpha, const double gamma);
+//void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struct History* history, int pop_amount, const double alpha, const double gamma);
 void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 
 double sigmoid_function(double x);
-double inv_sigmoid_function(double x);
+double invsigmoid_function(double x);
+void apply_sigmoid_to_array(double* dest_array, double* src_array, const int size);
 double* create_sigmoid_array(double* const array, const int size);
-double* create_inv_sigmoid_array(double* const array, const int size);
+void apply_invsigmoid_to_array(double* dest_array, double* src_array, const int size);
+double* create_invsigmoid_array(double* const array, const int size);
 double get_max_value(double* const array, const int size);
 int get_max_index(double* const array, const int size);
 
@@ -97,6 +100,7 @@ double get_random_double(double min, double max);
 double* create_double_array(const int size, const double initial_value);
 double** create_2D_double_array(const int i_size, const int j_size, const double initial_value);
 double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const double initial_value);
+void copy_double_array(double* dest_array, double* const src_array, const int size);
 double* create_double_array_copy(double* const array, const int size);
 double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size);
 double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size);

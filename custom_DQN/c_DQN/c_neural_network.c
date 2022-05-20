@@ -117,7 +117,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
         network_state->hidden_layers[i + 1] = create_next_layer(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_size);
     }
     network_state->output_layer = create_next_layer(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_size);
-    network_state->output = create_inv_sigmoid_array(network_state->output_layer, output_size);
+    network_state->output = create_invsigmoid_array(network_state->output_layer, output_size);
 
     //network_state->input_weights = create_2D_double_array_copy(neural_network->input_weights, input_size, hidden_size);
     //network_state->hidden_weights = create_3D_double_array_copy(neural_network->hidden_weights, hidden_amount - 1, hidden_size, hidden_size);
@@ -190,12 +190,12 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     const int hidden_size = neural_network->hidden_size;
     const int output_size = neural_network->output_size;
 
-    double* output_error = create_loss(network_state->output_layer, target_output, output_size);
+    //double* output_error = create_loss(network_state->output_layer, target_output, output_size);
+    double output_error[output_size];
+    get_loss(output_error, network_state->output_layer, target_output, output_size);
     double** hidden_errors = (double**)malloc(hidden_amount * sizeof(double*));
-    //hidden_errors[0] = create_error(network_state->hidden_layers[hidden_amount - 1], hidden_size, network_state->output_weights, output_error, output_size);
     hidden_errors[hidden_amount - 1] = create_error(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
-    for(register int i = hidden_amount - 2; i > 0; --i) {
-        //hidden_errors[i] = create_error(network_state->hidden_layers[index], hidden_size, network_state->hidden_weights[index], hidden_errors[i - 1], hidden_size);
+    for(register int i = hidden_amount - 2; i >= 0; --i) {
         hidden_errors[i] = create_error(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_errors[i + 1], hidden_size);
     }
 
@@ -213,12 +213,12 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     error_size = output_size;
     update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
 
-    for(register int i = hidden_amount - 1; i > 1; --i) {
+    for(register int i = hidden_amount - 2; i > 0; --i) {
         layer = network_state->hidden_layers[i];
         layer_size = hidden_size;
-        weights = neural_network->hidden_weights[i - 1];
-        delta_weights = neural_network->delta_hidden_weights[i - 1];
-        error = hidden_errors[i];
+        weights = neural_network->hidden_weights[i];
+        delta_weights = neural_network->delta_hidden_weights[i];
+        error = hidden_errors[i + 1];
         error_size = hidden_size;
         update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
     }
@@ -232,14 +232,21 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
 
     free_2D_double_array(hidden_errors, hidden_amount);
-    free(output_error);
+    //free(output_error);
 }
 
 
-double* create_loss(double* const output, double* const target, const int output_size) {
-    double* loss = (double*)malloc(output_size * sizeof(double));
+void get_loss(double* loss, double* const output, double* const target, const int output_size) {
     for(register int i = 0; i < output_size; ++i) {
         loss[i] = output[i] * (1 - output[i]) * (target[i] - output[i]);
+    }
+}
+
+
+double* create_loss(double* const output, double* const target_ouput, const int output_size) {
+    double* loss = (double*)malloc(output_size * sizeof(double));
+    for(register int i = 0; i < output_size; ++i) {
+        loss[i] = output[i] * (1 - output[i]) * (target_ouput[i] - output[i]);
     }
     return loss;
 }
@@ -336,7 +343,7 @@ void* update_weights_thread(void* params_ptr) {
 
     for(register int i = starting_index; i < starting_index + iterations; ++i) {
         for(register int j = 0; j < error_size; ++j) {
-            long double new_value = weights[i][j] + (learning_rate * layer[i] * error[j]);
+            long double new_value = weights[i][j] - (learning_rate * layer[i] * error[j]);
             new_value += momentum_enabled ? momentum_value * delta_weights[i][j] : 0;
             delta_weights[i][j] = weights[i][j] - (double)(new_value);
             weights[i][j] = (double)(new_value);
