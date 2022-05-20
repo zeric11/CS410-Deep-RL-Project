@@ -193,11 +193,10 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     double* output_error = create_loss(network_state->output_layer, target_output, output_size);
     double** hidden_errors = (double**)malloc(hidden_amount * sizeof(double*));
     //hidden_errors[0] = create_error(network_state->hidden_layers[hidden_amount - 1], hidden_size, network_state->output_weights, output_error, output_size);
-    hidden_errors[0] = create_error(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
-    for(register int i = 1; i < hidden_amount; ++i) {
-        const int index = hidden_amount - 1 - i;
+    hidden_errors[hidden_amount - 1] = create_error(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
+    for(register int i = hidden_amount - 2; i > 0; --i) {
         //hidden_errors[i] = create_error(network_state->hidden_layers[index], hidden_size, network_state->hidden_weights[index], hidden_errors[i - 1], hidden_size);
-        hidden_errors[i] = create_error(neural_network, network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], hidden_errors[i - 1], hidden_size);
+        hidden_errors[i] = create_error(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_errors[i + 1], hidden_size);
     }
 
     // Current weights are updated based on the errors calculated from the weights and layers
@@ -212,17 +211,16 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     delta_weights = neural_network->delta_output_weights;
     error = output_error;
     error_size = output_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
 
-    for(register int i = 1; i < hidden_amount; ++i) {
-        int index = hidden_amount - 1 - i;
-        layer = network_state->hidden_layers[index];
+    for(register int i = hidden_amount - 1; i > 1; --i) {
+        layer = network_state->hidden_layers[i];
         layer_size = hidden_size;
-        weights = neural_network->hidden_weights[index];
-        delta_weights = neural_network->delta_hidden_weights[index];
+        weights = neural_network->hidden_weights[i - 1];
+        delta_weights = neural_network->delta_hidden_weights[i - 1];
         error = hidden_errors[i];
         error_size = hidden_size;
-        update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
+        update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
     }
 
     layer = network_state->input_layer;
@@ -231,7 +229,7 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     delta_weights = neural_network->delta_input_weights;
     error = hidden_errors[0];
     error_size = hidden_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
 
     free_2D_double_array(hidden_errors, hidden_amount);
     free(output_error);

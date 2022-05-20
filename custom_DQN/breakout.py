@@ -85,7 +85,7 @@ def main():
     params.alpha = 0.1
     params.gamma = 0.95
     params.epsilon = 100
-    params.epsilon_decay = 5
+    params.epsilon_decay = 1
     params.batch_size = 300
     params.episodes_amount = 1000
     params.display_outputs_enabled = True
@@ -144,7 +144,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         step_number = 1
         afk_counter = 0
         afk_max_amount = 150
-        afk_penalty = -30
+        afk_reward = -30
+        afk_reward_growth = -5
         #reward_coefficient = 5
         while not done:
             rgb_values = env.render("rgb_array")
@@ -172,7 +173,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 afk_counter = 0
 
             if afk_counter == afk_max_amount:
-                reward += afk_penalty
+                reward += afk_reward
+                afk_reward += afk_reward_growth
                 afk_counter = 0
 
             if step_number > 1:
