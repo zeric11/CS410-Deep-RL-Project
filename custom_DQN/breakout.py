@@ -76,18 +76,18 @@ def main():
     params.env_name = "Breakout-v0"
     params.neural_network = None
     params.input_size = 210 * 160 * 2
-    params.hidden_amount = 3
+    params.hidden_amount = 5
     params.hidden_size = 100
     params.output_size = 4
-    params.learning_rate = 0.1
-    params.momentum_value = 0.9
+    params.learning_rate = 1
+    params.momentum_value = 0.5
     params.momentum_enabled = False
-    params.alpha = 1
+    params.alpha = 0.1
     params.gamma = 0.95
     params.epsilon = 100
     params.epsilon_decay = 5
-    params.batch_size = 150
-    params.episodes_amount = 100
+    params.batch_size = 300
+    params.episodes_amount = 1000
     params.display_outputs_enabled = True
     params.conv_layer = ConvLayer()
     params.filters_enabled = False
@@ -99,12 +99,15 @@ def main():
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 1")
-    plt.savefig()
+    plt.title("Test 2")
+    plt.savefig("Test 2")
     plt.show()
 
 
 def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
+    x_values = []
+    y_values = []
+
     env = gym.make(params.env_name, render_mode="rgb_array")
     if not params.neural_network:
         params.neural_network = NeuralNetwork(params.input_size, params.hidden_amount, params.hidden_size, params.output_size, \
@@ -121,9 +124,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     print("observ_space:", observ_space)
     print("action_space:", action_space)
     print("actions:", env.unwrapped.get_action_meanings())
-
-    x_values = []
-    y_values = []
 
     epsilon = params.epsilon
     for episode in range(params.episodes_amount):
@@ -142,8 +142,10 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
         done = False
         step_number = 1
-        afk_counter = 1
-        afk_check_size = 100
+        afk_counter = 0
+        afk_max_amount = 150
+        afk_penalty = -30
+        #reward_coefficient = 5
         while not done:
             rgb_values = env.render("rgb_array")
             viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
@@ -157,18 +159,25 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
             observation, reward, done, info = env.step(action)
             score += reward
 
+            if score <= prev_score:
+                afk_counter += 1
+            else:
+                afk_counter = 0
+            prev_score = score
+
             lives = info["lives"]
             if lives < prev_lives:
-                reward -= 1
-                prev_lives = lives
-
-            if afk_counter == afk_check_size and score <= prev_score:
                 reward -= 5
-                prev_score = score
+                prev_lives = lives
+                afk_counter = 0
+
+            if afk_counter == afk_max_amount:
+                reward += afk_penalty
                 afk_counter = 0
 
             if step_number > 1:
                 if params.display_outputs_enabled:
+                    #actual_reward = reward * reward_coefficient
                     print("Ep:", episode + 1, "\tStep:", step_number, end='\t', flush=True)
                     network_state.display_output()
                     print("\tAction:", action, "\tReward:", reward)
@@ -188,7 +197,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 env_state = params.conv_layer.generate_unfiltered_input(observation)
 
             step_number += 1
-            afk_counter += 1
 
         history.update_neural_network_all_events(params.neural_network, params.alpha, params.gamma)
 
@@ -199,6 +207,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         y_values.append(score)
 
     env.close()
+
+    return (x_values, y_values)
 
 
 if __name__ == "__main__":

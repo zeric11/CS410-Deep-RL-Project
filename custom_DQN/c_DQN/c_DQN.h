@@ -73,7 +73,8 @@ void free_network_state(struct NetworkState* network_state);
 
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
 double* create_loss(double* const output, double* const target_output, const int output_size);
-double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
+double* create_error(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size);
+void* create_error_thread(void* params_ptr);
 void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size);
 void* update_weights_thread(void* params_ptr);
 
@@ -92,15 +93,13 @@ double* create_inv_sigmoid_array(double* const array, const int size);
 double get_max_value(double* const array, const int size);
 int get_max_index(double* const array, const int size);
 
+double get_random_double(double min, double max);
 double* create_double_array(const int size, const double initial_value);
 double** create_2D_double_array(const int i_size, const int j_size, const double initial_value);
 double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const double initial_value);
-
-double get_random_double(double min, double max);
 double* create_double_array_copy(double* const array, const int size);
 double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size);
 double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size);
-
 void free_2D_double_array(double** array, const int size);
 void free_3D_double_array(double*** array, const int i_size, const int j_size);
 

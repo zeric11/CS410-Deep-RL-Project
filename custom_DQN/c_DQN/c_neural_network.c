@@ -4,7 +4,7 @@
 struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled) {
     struct NeuralNetwork* neural_network = (struct NeuralNetwork*)malloc(sizeof(struct NeuralNetwork));
 
-    neural_network->max_threads = 10;
+    neural_network->max_threads = 8;
 
     neural_network->input_size = input_size;
     neural_network->hidden_amount = hidden_amount;
@@ -193,11 +193,11 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     double* output_error = create_loss(network_state->output_layer, target_output, output_size);
     double** hidden_errors = (double**)malloc(hidden_amount * sizeof(double*));
     //hidden_errors[0] = create_error(network_state->hidden_layers[hidden_amount - 1], hidden_size, network_state->output_weights, output_error, output_size);
-    hidden_errors[0] = create_error(network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
+    hidden_errors[0] = create_error(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
     for(register int i = 1; i < hidden_amount; ++i) {
         const int index = hidden_amount - 1 - i;
         //hidden_errors[i] = create_error(network_state->hidden_layers[index], hidden_size, network_state->hidden_weights[index], hidden_errors[i - 1], hidden_size);
-        hidden_errors[i] = create_error(network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], hidden_errors[i - 1], hidden_size);
+        hidden_errors[i] = create_error(neural_network, network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], hidden_errors[i - 1], hidden_size);
     }
 
     // Current weights are updated based on the errors calculated from the weights and layers
@@ -212,7 +212,7 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     delta_weights = neural_network->delta_output_weights;
     error = output_error;
     error_size = output_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
 
     for(register int i = 1; i < hidden_amount; ++i) {
         int index = hidden_amount - 1 - i;
@@ -222,7 +222,7 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
         delta_weights = neural_network->delta_hidden_weights[index];
         error = hidden_errors[i];
         error_size = hidden_size;
-        update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
+        update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
     }
 
     layer = network_state->input_layer;
@@ -231,7 +231,7 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     delta_weights = neural_network->delta_input_weights;
     error = hidden_errors[0];
     error_size = hidden_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, output_error, output_size);
+    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, output_size);
 
     free_2D_double_array(hidden_errors, hidden_amount);
     free(output_error);
@@ -247,22 +247,71 @@ double* create_loss(double* const output, double* const target, const int output
 }
 
 
-double* create_error(double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size) {
-    double* error = (double*)malloc(layer_size * sizeof(double));
-    for(register int i = 0; i < layer_size; ++i) {
+struct CreateErrorThreadParams {
+    int starting_index;
+    int job_size;
+    double* layer;
+    double** weights; 
+    double* previous_error; 
+    int previous_error_size;
+    double* error;
+};
+
+
+void* create_error_thread(void* params_ptr) {
+    struct CreateErrorThreadParams* params = (struct CreateErrorThreadParams*)params_ptr;
+    int starting_index = params->starting_index;
+    int iterations = params->job_size;
+    double* layer = params->layer;
+    double** weights = params->weights; 
+    double* previous_error = params->previous_error; 
+    int previous_error_size = params->previous_error_size;
+    double* error = params->error;
+
+    for(register int i = starting_index; i < starting_index + iterations; ++i) {
         long double sum = 0;
         for(register int j = 0; j < previous_error_size; ++j) {
             sum += weights[i][j] * previous_error[j];
         }
         error[i] = layer[i] * (1 - layer[i]) * (double)(sum);
     }
+
+}
+
+
+double* create_error(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size) {
+    double* error = (double*)malloc(layer_size * sizeof(double));
+    
+    int thread_amount = layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
+    thread_amount = 1;
+    int job_size = (int)(layer_size / thread_amount);
+    int last_job_size = layer_size - (job_size * (thread_amount - 1));
+    
+    struct CreateErrorThreadParams params_list[thread_amount];
+    pthread_t threads[thread_amount];
+
+    for(register int i = 0; i < thread_amount; ++i) {
+        params_list[i].starting_index = job_size * i;
+        params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
+        params_list[i].layer = layer;
+        params_list[i].weights = weights; 
+        params_list[i].previous_error = previous_error; 
+        params_list[i].previous_error_size = previous_error_size;
+        params_list[i].error = error;
+        pthread_create(&threads[i], NULL, create_error_thread, &params_list[i]);
+    }
+
+    for(register int i = 0; i < thread_amount; ++i) {
+        pthread_join(threads[i], NULL);
+    }
+
     return error;
 }
 
 
 struct UpdateWeightsThreadParams {
     int starting_index;
-    int iterations;
+    int job_size;
     double* layer;
     double** weights;
     double** delta_weights;
@@ -277,7 +326,7 @@ struct UpdateWeightsThreadParams {
 void* update_weights_thread(void* params_ptr) {
     struct UpdateWeightsThreadParams* params = (struct UpdateWeightsThreadParams*)params_ptr;
     int starting_index = params->starting_index;
-    int iterations = params->iterations;
+    int iterations = params->job_size;
     double* layer = params->layer;
     double** weights = params->weights;
     double** delta_weights = params->delta_weights;
@@ -286,6 +335,7 @@ void* update_weights_thread(void* params_ptr) {
     double learning_rate = params->learning_rate;
     double momentum_value = params->momentum_value;
     int momentum_enabled = params->momentum_enabled;
+
     for(register int i = starting_index; i < starting_index + iterations; ++i) {
         for(register int j = 0; j < error_size; ++j) {
             long double new_value = weights[i][j] + (learning_rate * layer[i] * error[j]);
@@ -308,7 +358,7 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
 
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
-        params_list[i].iterations = i == thread_amount - 1 ? last_job_size : job_size;
+        params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
         params_list[i].layer = layer;
         params_list[i].weights = weights;
         params_list[i].delta_weights = delta_weights;

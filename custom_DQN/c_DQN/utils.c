@@ -2,22 +2,22 @@
 
 
 double sigmoid_function(double x) {
-    if(x < -700) {
+    if(x < -709) {
         return 0;
-    } else if(x > 36) {
+    } else if(x > 37) {
         return 1;
     }
-    return 1 / (1 + (double)exp(-x));
+    return (double)(1 / (1 + (long double)(exp(-x))));
 }
 
 
 double inv_sigmoid_function(double x) {
-    if(x < 1.0E-304) {
-        return -700;
-    } else if(x > 0.999999999999999) {
-        return 36;
+    if(x < 1.2E-308) {
+        return -709;
+    } else if(x > 0.9999999999999999) {
+        return 37;
     }
-    return (double)log(x) - (double)log(1 - x);
+    return (double)((long double)(log(x)) - (long double)(log(1 - x)));
 }
 
 

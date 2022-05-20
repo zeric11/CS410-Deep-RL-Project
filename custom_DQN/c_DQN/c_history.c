@@ -98,7 +98,7 @@ void perform_batch_update_pop_amount(struct NeuralNetwork* neural_network, struc
 void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
     struct Event* event = history->event_head;
     struct Event* last_event = NULL;
-    double max_next_state_Qvalue = 0;
+    double next_state_max_Qvalue = 0;
 
     for(register int i = 0; i < history->size; ++i) {
         struct NetworkState* network_state = event->network_state;
@@ -120,8 +120,9 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
         }
         */
 
-        target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * max_next_state_Qvalue)));
-        max_next_state_Qvalue = get_max_value(target_output, network_state->output_size);
+        //target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
+        target_output[chosen_action] += alpha * (reward + (gamma * next_state_max_Qvalue) - target_output[chosen_action]);
+        next_state_max_Qvalue = get_max_value(target_output, network_state->output_size);
 
         // Second to last event
         if(i == history->size - 2) {
@@ -149,7 +150,7 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
 
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
     struct Event* event = history->event_head;
-    double max_next_state_Qvalue = 0;
+    double next_state_max_Qvalue = 0;
 
     for(register int i = 0; i < history->size; ++i) {
         struct NetworkState* network_state = event->network_state;
@@ -171,8 +172,9 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
         }
         */
 
-        target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * max_next_state_Qvalue)));
-        max_next_state_Qvalue = get_max_value(target_output, network_state->output_size);
+        //target_output[chosen_action] = ((1 - alpha) * target_output[chosen_action]) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
+        target_output[chosen_action] += alpha * (reward + (gamma * next_state_max_Qvalue) - target_output[chosen_action]);
+        next_state_max_Qvalue = get_max_value(target_output, network_state->output_size);
 
         double* target = create_sigmoid_array(target_output, network_state->output_size);
         execute_back_propagation(neural_network, network_state, target);
