@@ -18,14 +18,14 @@ struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidd
     srand((int)time(NULL));
 
     // Allocating weights.
-    neural_network->input_weights = create_2D_double_array(input_size, hidden_size, 0);
-    neural_network->hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size, hidden_size, 0);
-    neural_network->output_weights = create_2D_double_array(hidden_size, output_size, 0);
+    neural_network->input_weights = create_2D_double_array(input_size + 1, hidden_size, 1);
+    neural_network->hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size + 1, hidden_size, 1);
+    neural_network->output_weights = create_2D_double_array(hidden_size + 1, output_size, 1);
 
     // Allocating delta weights.
-    neural_network->delta_input_weights = create_2D_double_array(input_size, hidden_size, 0);
-    neural_network->delta_hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size, hidden_size, 0);
-    neural_network->delta_output_weights = create_2D_double_array(hidden_size, output_size, 0);
+    neural_network->delta_input_weights = create_2D_double_array(input_size + 1, hidden_size, 0);
+    neural_network->delta_hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size + 1, hidden_size, 0);
+    neural_network->delta_output_weights = create_2D_double_array(hidden_size + 1, output_size, 0);
 
     return neural_network;
 }
@@ -39,22 +39,22 @@ void free_neural_network(struct NeuralNetwork* neural_network) {
 
     if(neural_network) {
         if(neural_network->input_weights) {
-            free_2D_double_array(neural_network->input_weights, input_size);
+            free_2D_double_array(neural_network->input_weights, input_size + 1);
         }
         if(neural_network->hidden_weights) {
-            free_3D_double_array(neural_network->hidden_weights, hidden_amount - 1, hidden_size);
+            free_3D_double_array(neural_network->hidden_weights, hidden_amount - 1, hidden_size + 1);
         }
         if(neural_network->output_weights) {
-            free_2D_double_array(neural_network->output_weights, hidden_size);
+            free_2D_double_array(neural_network->output_weights, hidden_size + 1);
         }
         if(neural_network->delta_input_weights) {
-            free_2D_double_array(neural_network->delta_input_weights, input_size);
+            free_2D_double_array(neural_network->delta_input_weights, input_size + 1);
         }
         if(neural_network->delta_hidden_weights) {
-            free_3D_double_array(neural_network->delta_hidden_weights, hidden_amount - 1, hidden_size);
+            free_3D_double_array(neural_network->delta_hidden_weights, hidden_amount - 1, hidden_size + 1);
         }
         if(neural_network->delta_output_weights) {
-            free_2D_double_array(neural_network->delta_output_weights, hidden_size);
+            free_2D_double_array(neural_network->delta_output_weights, hidden_size + 1);
         }
         free(neural_network);
     }
@@ -78,18 +78,6 @@ void free_network_state(struct NetworkState* network_state) {
         if(network_state->output_layer) {
             free(network_state->output_layer);
         }
-        if(network_state->output) {
-            free(network_state->output);
-        }
-        //if(network_state->input_weights) {
-        //    free_2D_double_array(network_state->input_weights, input_size);
-        //}
-        //if(network_state->hidden_weights) {
-        //    free_3D_double_array(network_state->hidden_weights, hidden_amount - 1, hidden_size);
-        //}
-        //if(network_state->output_weights) {
-        //    free_2D_double_array(network_state->output_weights, hidden_size);
-        //}
         free(network_state);
     }
     network_state = NULL;
@@ -112,16 +100,11 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
     // As the network propagates through each layer, the layer that results from each step is stored in the network_state.
     network_state->input_layer = create_double_array_copy(input, input_size);
     network_state->hidden_layers = (double**)malloc(hidden_amount * sizeof(double*));
-    network_state->hidden_layers[0] = create_next_layer(neural_network, input, input_size, neural_network->input_weights, hidden_size);
-    for(register int i = 0; i < hidden_amount - 1; ++i) {
-        network_state->hidden_layers[i + 1] = create_next_layer(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_size);
+    network_state->hidden_layers[0] = create_next_layer(neural_network, network_state->input_layer, input_size, neural_network->input_weights, hidden_size);
+    for(register int i = 1; i < hidden_amount; ++i) {
+        network_state->hidden_layers[i] = create_next_layer(neural_network, network_state->hidden_layers[i - 1], hidden_size, neural_network->hidden_weights[i - 1], hidden_size);
     }
     network_state->output_layer = create_next_layer(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_size);
-    network_state->output = create_invsigmoid_array(network_state->output_layer, output_size);
-
-    //network_state->input_weights = create_2D_double_array_copy(neural_network->input_weights, input_size, hidden_size);
-    //network_state->hidden_weights = create_3D_double_array_copy(neural_network->hidden_weights, hidden_amount - 1, hidden_size, hidden_size);
-    //network_state->output_weights = create_2D_double_array_copy(neural_network->output_weights, hidden_size, output_size);
     
     return network_state;
 }
@@ -151,14 +134,17 @@ void* create_next_layer_thread(void* params_ptr) {
         for(register int j = 0; j < layer_size; ++j) {
             total += layer[j] * weights[j][i];
         }
-        next_layer[i] = sigmoid_function((double)(total));
+        next_layer[i] = tanh_function(total);
     }
 }
 
 
 double* create_next_layer(struct NeuralNetwork* const neural_network, double* const layer, const int layer_size, double** const weights, const int next_layer_size) {
+    int biased_layer_size = layer_size + 1;
+    double biased_layer[biased_layer_size];
+    copy_biased_array(biased_layer, layer, layer_size);
+
     double* next_layer = (double*)malloc(next_layer_size * sizeof(double));
-    
     int thread_amount = (next_layer_size < neural_network->max_threads) ? 1 : neural_network->max_threads;
     int job_size = (int)(next_layer_size / thread_amount);
     int last_job_size = next_layer_size - (job_size * (thread_amount - 1));
@@ -169,8 +155,8 @@ double* create_next_layer(struct NeuralNetwork* const neural_network, double* co
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
         params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
-        params_list[i].layer = layer;
-        params_list[i].layer_size = layer_size;
+        params_list[i].layer = biased_layer;
+        params_list[i].layer_size = biased_layer_size;
         params_list[i].weights = weights;
         params_list[i].next_layer = next_layer;
         pthread_create(&threads[i], NULL, create_next_layer_thread, &params_list[i]);
@@ -190,109 +176,72 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     const int hidden_size = neural_network->hidden_size;
     const int output_size = neural_network->output_size;
 
-    //double* output_error = create_loss(network_state->output_layer, target_output, output_size);
-    double output_error[output_size];
+    long double output_error[output_size];
     get_loss(output_error, network_state->output_layer, target_output, output_size);
-    double** hidden_errors = (double**)malloc(hidden_amount * sizeof(double*));
-    hidden_errors[hidden_amount - 1] = create_error(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
+
+    long double hidden_errors[hidden_amount][hidden_size];
+    get_error(hidden_errors[hidden_amount - 1], neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
+
     for(register int i = hidden_amount - 2; i >= 0; --i) {
-        hidden_errors[i] = create_error(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_errors[i + 1], hidden_size);
+        get_error(hidden_errors[i], neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_errors[i + 1], hidden_size);
     }
 
     // Current weights are updated based on the errors calculated from the weights and layers
     // that were saved into network_state during the forward propagation step.
-    double* layer, *error;
-    int layer_size, error_size;
-    double** weights, **delta_weights;
-
-    layer = network_state->hidden_layers[hidden_amount - 1];
-    layer_size = hidden_size;
-    weights = neural_network->output_weights;
-    delta_weights = neural_network->delta_output_weights;
-    error = output_error;
-    error_size = output_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
-
-    for(register int i = hidden_amount - 2; i > 0; --i) {
-        layer = network_state->hidden_layers[i];
-        layer_size = hidden_size;
-        weights = neural_network->hidden_weights[i];
-        delta_weights = neural_network->delta_hidden_weights[i];
-        error = hidden_errors[i + 1];
-        error_size = hidden_size;
-        update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
+    update_weights(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, neural_network->delta_output_weights, output_error, output_size);
+    for(register int i = hidden_amount - 2; i >= 0; --i) {
+        update_weights(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], neural_network->delta_hidden_weights[i], hidden_errors[i + 1], hidden_size);
     }
-
-    layer = network_state->input_layer;
-    layer_size = input_size;
-    weights = neural_network->input_weights;
-    delta_weights = neural_network->delta_input_weights;
-    error = hidden_errors[0];
-    error_size = hidden_size;
-    update_weights(neural_network, layer, layer_size, weights, delta_weights, error, error_size);
-
-    free_2D_double_array(hidden_errors, hidden_amount);
-    //free(output_error);
+    update_weights(neural_network, network_state->input_layer, input_size, neural_network->input_weights, neural_network->delta_input_weights, hidden_errors[0], hidden_size);
 }
 
 
-void get_loss(double* loss, double* const output, double* const target, const int output_size) {
+void get_loss(long double* loss, double* const output, double* const target, const int output_size) {
     for(register int i = 0; i < output_size; ++i) {
-        loss[i] = output[i] * (1 - output[i]) * (target[i] - output[i]);
+        loss[i] = (1 - ((long double)output[i] * (long double)output[i])) * ((long double)output[i] - (long double)target[i]);
+        //loss[i] = (1 - ((long double)output[i] * (long double)output[i])) * ((long double)target[i] - (long double)output[i]);
     }
 }
 
 
-double* create_loss(double* const output, double* const target_ouput, const int output_size) {
-    double* loss = (double*)malloc(output_size * sizeof(double));
-    for(register int i = 0; i < output_size; ++i) {
-        loss[i] = output[i] * (1 - output[i]) * (target_ouput[i] - output[i]);
-    }
-    return loss;
-}
-
-
-struct CreateErrorThreadParams {
+struct GetErrorThreadParams {
     int starting_index;
     int job_size;
     double* layer;
     double** weights; 
-    double* previous_error; 
+    long double* previous_error; 
     int previous_error_size;
-    double* error;
+    long double* error;
 };
 
 
-void* create_error_thread(void* params_ptr) {
-    struct CreateErrorThreadParams* params = (struct CreateErrorThreadParams*)params_ptr;
+void* get_error_thread(void* params_ptr) {
+    struct GetErrorThreadParams* params = (struct GetErrorThreadParams*)params_ptr;
     int starting_index = params->starting_index;
     int iterations = params->job_size;
     double* layer = params->layer;
     double** weights = params->weights; 
-    double* previous_error = params->previous_error; 
+    long double* previous_error = params->previous_error; 
     int previous_error_size = params->previous_error_size;
-    double* error = params->error;
+    long double* error = params->error;
 
     for(register int i = starting_index; i < starting_index + iterations; ++i) {
         long double sum = 0;
         for(register int j = 0; j < previous_error_size; ++j) {
-            sum += weights[i][j] * previous_error[j];
+            sum += (long double)weights[i][j] * (long double)previous_error[j];
         }
-        error[i] = layer[i] * (1 - layer[i]) * (double)(sum);
+        error[i] = (1 - ((long double)layer[i] * (long double)layer[i])) * (long double)(sum);
     }
-
 }
 
 
-double* create_error(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, double* const previous_error, const int previous_error_size) {
-    double* error = (double*)malloc(layer_size * sizeof(double));
-    
+long double* get_error(long double* error, struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size) {
     int thread_amount = layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
     thread_amount = 1;
     int job_size = (int)(layer_size / thread_amount);
     int last_job_size = layer_size - (job_size * (thread_amount - 1));
     
-    struct CreateErrorThreadParams params_list[thread_amount];
+    struct GetErrorThreadParams params_list[thread_amount];
     pthread_t threads[thread_amount];
 
     for(register int i = 0; i < thread_amount; ++i) {
@@ -303,14 +252,12 @@ double* create_error(struct NeuralNetwork* neural_network, double* const layer, 
         params_list[i].previous_error = previous_error; 
         params_list[i].previous_error_size = previous_error_size;
         params_list[i].error = error;
-        pthread_create(&threads[i], NULL, create_error_thread, &params_list[i]);
+        pthread_create(&threads[i], NULL, get_error_thread, &params_list[i]);
     }
 
     for(register int i = 0; i < thread_amount; ++i) {
         pthread_join(threads[i], NULL);
     }
-
-    return error;
 }
 
 
@@ -320,10 +267,10 @@ struct UpdateWeightsThreadParams {
     double* layer;
     double** weights;
     double** delta_weights;
-    double* error;
+    long double* error;
     int error_size;
-    double learning_rate;
-    double momentum_value;
+    long double learning_rate;
+    long double momentum_value;
     int momentum_enabled;
 };
 
@@ -335,28 +282,32 @@ void* update_weights_thread(void* params_ptr) {
     double* layer = params->layer;
     double** weights = params->weights;
     double** delta_weights = params->delta_weights;
-    double* error = params->error;
+    long double* error = params->error;
     int error_size = params->error_size;
-    double learning_rate = params->learning_rate;
-    double momentum_value = params->momentum_value;
+    long double learning_rate = params->learning_rate;
+    long double momentum_value = params->momentum_value;
     int momentum_enabled = params->momentum_enabled;
 
     for(register int i = starting_index; i < starting_index + iterations; ++i) {
         for(register int j = 0; j < error_size; ++j) {
-            long double new_value = weights[i][j] - (learning_rate * layer[i] * error[j]);
-            new_value += momentum_enabled ? momentum_value * delta_weights[i][j] : 0;
-            delta_weights[i][j] = weights[i][j] - (double)(new_value);
-            weights[i][j] = (double)(new_value);
+            long double new_value = (long double)weights[i][j] - ((long double)learning_rate * (long double)layer[i] * (long double)error[j]);
+            new_value += momentum_enabled ? (long double)momentum_value * (long double)delta_weights[i][j] : 0;
+            delta_weights[i][j] = (long double)new_value - (long double)weights[i][j];
+            weights[i][j] = new_value;
         }
     }
 }
 
 
-void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, double* const error, const int error_size) {
-    int thread_amount = layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
+void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, long double* const error, const int error_size) {
+    int biased_layer_size = layer_size + 1;
+    double biased_layer[biased_layer_size];
+    copy_biased_array(biased_layer, layer, layer_size);
+
+    int thread_amount = biased_layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
     thread_amount = 1;
-    int job_size = (int)(layer_size / thread_amount);
-    int last_job_size = layer_size - (job_size * (thread_amount - 1));
+    int job_size = (int)(biased_layer_size / thread_amount);
+    int last_job_size = biased_layer_size - (job_size * (thread_amount - 1));
 
     struct UpdateWeightsThreadParams params_list[thread_amount];
     pthread_t threads[thread_amount];
@@ -364,7 +315,7 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
         params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
-        params_list[i].layer = layer;
+        params_list[i].layer = biased_layer;
         params_list[i].weights = weights;
         params_list[i].delta_weights = delta_weights;
         params_list[i].error = error;
@@ -378,6 +329,7 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
     for(register int i = 0; i < thread_amount; ++i) {
         pthread_join(threads[i], NULL);
     }
+    
 }
 
 

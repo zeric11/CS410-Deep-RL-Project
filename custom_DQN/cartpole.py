@@ -73,19 +73,19 @@ class TrainingParams:
 
 def main():
     params = TrainingParams()
-    params.env_name = "Breakout-v0"
+    params.env_name = "CartPole-v1"
     params.neural_network = None
-    params.input_size = 210 * 160 * 2
+    params.input_size = 8
     params.hidden_amount = 5
     params.hidden_size = 100
-    params.output_size = 4
-    params.learning_rate = 0.01
+    params.output_size = 2
+    params.learning_rate = 0.0005
     params.momentum_value = 0.5
     params.momentum_enabled = False
-    params.alpha = 0.01
-    params.gamma = 0.95
-    params.epsilon = 100
-    params.epsilon_decay = 1
+    params.alpha = 0.001
+    params.gamma = 0.75
+    params.epsilon = 00
+    params.epsilon_decay = 0.5
     params.batch_size = 300
     params.episodes_amount = 1000
     params.display_outputs_enabled = True
@@ -99,8 +99,8 @@ def main():
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 2")
-    plt.savefig("Test 2")
+    plt.title("Test 1")
+    plt.savefig("Test 1")
     plt.show()
 
 
@@ -108,34 +108,30 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     x_values = []
     y_values = []
 
-    env = gym.make(params.env_name, render_mode="rgb_array")
+    env = gym.make(params.env_name)
     if not params.neural_network:
         params.neural_network = NeuralNetwork(params.input_size, params.hidden_amount, params.hidden_size, params.output_size, \
                                               params.learning_rate, params.momentum_value, params.momentum_enabled)
 
     viewer = rendering.SimpleImageViewer()
 
-    height, width, channels = env.observation_space.shape
-    observ_space = env.observation_space
-    action_space = env.action_space
-    print("height:", height)
-    print("width:", width)
-    print("channels:", channels)
-    print("observ_space:", observ_space)
-    print("action_space:", action_space)
-    print("actions:", env.unwrapped.get_action_meanings())
+    #height, width, channels = env.observation_space.shape
+    #observ_space = env.observation_space
+    #action_space = env.action_space
+    #print("height:", height)
+    #print("width:", width)
+    #print("channels:", channels)
+    #print("observ_space:", observ_space)
+    #print("action_space:", action_space)
+    #print("actions:", env.unwrapped.get_action_meanings())
 
     epsilon = params.epsilon
     for episode in range(params.episodes_amount):
         history = History()
 
-        env_state = None
-        if params.filters_enabled:
-            env_state = params.conv_layer.generate_filtered_input(env.reset())
-        else:
-            env_state = params.conv_layer.generate_unfiltered_input(env.reset())
+        env_state = env.reset()
+        prev_env_state = env_state
 
-        prev_env_state = None
         score = 0
         prev_score = 0
         prev_lives = 5
@@ -148,16 +144,17 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         afk_reward_growth = -5
         #reward_coefficient = 5
         while not done:
-            rgb_values = env.render("rgb_array")
-            viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
+            #rgb_values = env.render("rgb_array")
+            #viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
 
-            network_state = None
-            action = 1
-            if step_number > 1:
-                network_state = params.neural_network.execute_forward_propagation(prev_env_state + env_state)
-                action = random.randrange(0, params.output_size) if random.randrange(0, 100) < epsilon else network_state.choose_action()
+            env.render()
+        
+            network_state = params.neural_network.execute_forward_propagation(np.concatenate((prev_env_state, env_state)))
+            action = random.randrange(0, params.output_size) if random.randrange(0, 100) < epsilon else network_state.choose_action()
 
+            #print(env.step(action))
             observation, reward, done, info = env.step(action)
+            #print(env.step(action))
             score += reward
 
             if score <= prev_score:
@@ -166,24 +163,20 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 afk_counter = 0
             prev_score = score
 
-            lives = info["lives"]
-            if lives < prev_lives:
-                reward -= 5 * (5 - lives)
-                prev_lives = lives
-                afk_counter = 0
-
             if afk_counter == afk_max_amount:
                 reward += afk_reward
                 #afk_reward += afk_reward_growth
                 afk_counter = 0
 
-            if step_number > 1:
-                if params.display_outputs_enabled:
-                    #actual_reward = reward * reward_coefficient
-                    print("Ep:", episode + 1, "\tStep:", step_number, end='\t', flush=True)
-                    network_state.display_output()
-                    print("\tAction:", action, "\tReward:", reward)
-                history.add_event(network_state, action, reward)
+            if done:
+                reward = -100
+
+            if params.display_outputs_enabled:
+                #actual_reward = reward * reward_coefficient
+                print("Ep:", episode + 1, "\tStep:", step_number, end='\t', flush=True)
+                network_state.display_output()
+                print("\tAction:", action, "\tReward:", reward)
+            history.add_event(network_state, action, reward)
 
             if history.get_length() >= params.batch_size:
                 # After certain number of steps has been completed, we are left with a "history" of network_states.
@@ -193,10 +186,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 history.update_neural_network_last_event(params.neural_network, params.alpha, params.gamma)
             
             prev_env_state = env_state
-            if params.filters_enabled:
-                env_state = params.conv_layer.generate_filtered_input(observation)
-            else:
-                env_state = params.conv_layer.generate_unfiltered_input(observation)
+            env_state = observation
 
             step_number += 1
 

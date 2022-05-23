@@ -2,7 +2,7 @@ from typing import List
 from ctypes import *
 
 
-c_lib = cdll.LoadLibrary("./c_DQN/c_neural_network.so")
+c_lib = cdll.LoadLibrary("./c_DQN/c_dqn.so")
 
 
 class c_NetworkState(Structure):
@@ -91,19 +91,13 @@ class NetworkState:
         output_layer = c_lib.get_output_layer(self.c_network_state)
         return [i for i in output_layer.contents]
 
-    def get_output(self) -> List[float]:
-        c_lib.get_output.argtype = POINTER(c_NetworkState)
-        c_lib.get_output.restype = POINTER(c_double * self.get_output_size())
-        output = c_lib.get_output(self.c_network_state)
-        return [i for i in output.contents]
-
     def choose_action(self) -> int:
-        c_lib.get_output.argtype = POINTER(c_NetworkState)
-        c_lib.get_output.restype = c_int
+        c_lib.choose_action.argtype = POINTER(c_NetworkState)
+        c_lib.choose_action.restype = c_int
         return c_lib.choose_action(self.c_network_state)
 
     def display_output(self) -> int:
-        c_lib.get_output.argtype = POINTER(c_NetworkState)
+        c_lib.display_output.argtype = POINTER(c_NetworkState)
         c_lib.display_output(self.c_network_state)
 
 
@@ -120,7 +114,6 @@ class NeuralNetwork:
         c_lib.free_neural_network(self.c_neural_network)
 
     def execute_forward_propagation(self, input: List[float]) -> NetworkState:
-        #return NetworkState(neural_network_c.execute_forward_propagation(self.network_c, input))
         len_input = len(input)
         c_lib.execute_forward_propagation.argtype = POINTER(c_double * len_input)
         c_lib.execute_forward_propagation.restype = POINTER(c_NetworkState)
@@ -151,10 +144,6 @@ class History:
         c_lib.add_event.argtypes = (POINTER(c_History), POINTER(c_NetworkState), c_int, c_double)
         c_lib.add_event(self.c_history, network_state.c_network_state, chosen_action, reward)
         network_state.c_network_state = None
-
-    #def update_neural_network_pop_amount(self, neural_network: NeuralNetwork, pop_amount: int, alpha: float, gamma: float) -> None:
-    #    c_lib.perform_batch_update_pop_amount.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_int, c_double, c_double)
-    #    c_lib.perform_batch_update_pop_amount(neural_network.c_neural_network, self.c_history, pop_amount, alpha, gamma)
 
     def update_neural_network_last_event(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
         c_lib.perform_batch_update_last.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)

@@ -1,53 +1,56 @@
 #include "c_DQN.h"
 
 
-double sigmoid_function(double x) {
-    if(x < -709) {
-        return 0;
-    } else if(x > 37) {
+long double tanh_function(long double x) {
+    if(x >= 18) {
         return 1;
     }
-    return (double)(1 / (1 + (long double)(exp(-x))));
-}
-
-
-double invsigmoid_function(double x) {
-    if(x < 1.2E-308) {
-        return -709;
-    } else if(x > 0.9999999999999999) {
-        return 37;
+    if(x <= -18) {
+        return -1;
     }
-    return (double)((long double)(log(x)) - (long double)(log(1 - x)));
+    return (long double)(((long double)exp(2 * x) - 1) / ((long double)exp(2 * x) + 1));
 }
 
 
-void apply_sigmoid_to_array(double* dest_array, double* src_array, const int size) {
+long double inv_tanh_function(long double x) {
+    if(x > 0.9999999999999995) {
+        return 18;
+    }
+    if(x < -0.9999999999999995) {
+        return -18;
+    }
+    return (long double)(0.5 * ((long double)log(1 + x) - (long double)log(1 - x)));
+
+}
+
+
+void apply_tanh_to_array(double* dest_array, double* src_array, const int size) {
     for(register int i = 0; i < size; ++i) {
-        dest_array[i] = (double)sigmoid_function(src_array[i]);
+        dest_array[i] = (double)tanh_function(src_array[i]);
     }
 }
 
 
-double* create_sigmoid_array(double* const array, const int size) {
+double* create_tanh_array(double* const array, const int size) {
     double* sigmoid_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        sigmoid_array[i] = (double)sigmoid_function(array[i]);
+        sigmoid_array[i] = (double)tanh_function(array[i]);
     }
     return sigmoid_array;
 }
 
 
-void apply_invsigmoid_to_array(double* dest_array, double* src_array, const int size) {
+void apply_inv_tanh_to_array(double* dest_array, double* src_array, const int size) {
     for(register int i = 0; i < size; ++i) {
-        dest_array[i] = (double)invsigmoid_function(src_array[i]);
+        dest_array[i] = (double)inv_tanh_function(src_array[i]);
     }
 }
 
 
-double* create_invsigmoid_array(double* const array, const int size) {
+double* create_inv_tanh_array(double* const array, const int size) {
     double* inv_sigmoid_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        inv_sigmoid_array[i] = (double)invsigmoid_function(array[i]);
+        inv_sigmoid_array[i] = (double)inv_tanh_function(array[i]);
     }
     return inv_sigmoid_array;
 }
@@ -81,33 +84,32 @@ double get_random_double(double min, double max) {
     } else if(min == max) {
         return min;
     }
-    return (double)((((double)rand()/(double)(RAND_MAX)) * (max - min)) + min);
+    return min + ((long double)rand() / RAND_MAX) * (max - min);
 }
 
 
-double* create_double_array(const int size, const double initial_value) {
+double* create_double_array(const int size, const int randomize) {
     double* new_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        //new_array[i] = initial_value;
-        new_array[i] = get_random_double(-0.5, 0.5);
+        new_array[i] = randomize ? get_random_double(-0.05, 0.05) : 0;
     }
     return new_array;
 }
 
 
-double** create_2D_double_array(const int i_size, const int j_size, const double initial_value) {
+double** create_2D_double_array(const int i_size, const int j_size, const int randomize) {
     double** new_array = (double**)malloc(i_size * sizeof(double*));
     for(register int i = 0; i < i_size; ++i) {
-        new_array[i] = create_double_array(j_size, initial_value);
+        new_array[i] = create_double_array(j_size, randomize);
     }
     return new_array;
 }
 
 
-double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const double initial_value) {
+double*** create_3D_double_array(const int i_size, const int j_size, const int k_size, const int randomize) {
     double*** new_array = (double***)malloc(i_size * sizeof(double**));
     for(register int i = 0; i < i_size; ++i) {
-        new_array[i] = create_2D_double_array(j_size, k_size, initial_value);
+        new_array[i] = create_2D_double_array(j_size, k_size, randomize);
     }
     return new_array;
 }
@@ -147,6 +149,24 @@ double*** create_3D_double_array_copy(double*** const array, const int i_size, c
 }
 
 
+void copy_biased_array(double* dest_array, double* const src_array, const int size) {
+    dest_array[size] = (double)BIAS_VALUE;
+    for(register int i = 0; i < size; ++i) {
+        dest_array[i] = (double)src_array[i];
+    }
+}
+
+
+double* create_biased_array_copy(double* const array, const int size) {
+    double* new_array = (double*)malloc((size + 1) * sizeof(double));
+    new_array[size] = BIAS_VALUE;
+    for(register int i = 0; i < size; ++i) {
+        new_array[i] = (double)array[i];
+    }
+    return new_array;
+}
+
+
 void free_2D_double_array(double** array, const int size) {
     if(array) {
         for(register int i = 0; i < size; ++i) {
@@ -171,10 +191,36 @@ void free_3D_double_array(double*** array, const int i_size, const int j_size) {
 }
 
 
+void free_2D_long_double_array(long double** array, const int size) {
+    if(array) {
+        for(register int i = 0; i < size; ++i) {
+            free(array[i]);
+        }
+        free(array);
+    }
+    array = NULL;
+}
+
+
+void free_3D_long_double_array(long double*** array, const int i_size, const int j_size) {
+    if(array) {
+        for(register int i = 0; i < i_size; ++i) {
+            if(array[i]) {
+                free_2D_long_double_array(array[i], j_size);
+            }
+        }
+        free(array);
+    }
+    array = NULL;
+}
+
+
 void display_output(struct NetworkState* const network_state) {
+    double output_values [network_state->output_size];
+    apply_inv_tanh_to_array(output_values, network_state->output_layer, network_state->output_size);
     printf("[");
     for(register int i = 0; i < network_state->output_size; ++i) {
-        printf(" %lf ", network_state->output[i]);
+        printf(" %lf ", output_values[i]);
     }
     printf("]");
     printf("\t");
@@ -228,11 +274,6 @@ double* get_output_layer(struct NetworkState* const network_state) {
 }
 
 
-double* get_output(struct NetworkState* const network_state) {
-    return network_state->output;
-}
-
-
 int choose_action(struct NetworkState* const network_state) {
-    return get_max_index(network_state->output, network_state->output_size);
+    return get_max_index(network_state->output_layer, network_state->output_size);
 }

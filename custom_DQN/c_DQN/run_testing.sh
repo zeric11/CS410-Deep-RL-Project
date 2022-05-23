@@ -1,2 +1,3 @@
-make dqn_testing
-valgrind --tool=memcheck --leak-check=yes -s ./dqn_test
+make dqn_test
+valgrind --tool=memcheck --leak-check=yes -s ./c_dqn_test
+make clean_dqn_test
