@@ -10,6 +10,8 @@
 #include <time.h>
 
 
+static const short MAX_THREADS = 8;
+
 static const short BIAS_VALUE = 1;
 
 
@@ -26,8 +28,6 @@ struct NetworkState {
 
 
 struct NeuralNetwork {
-    short max_threads;
-
     int input_size;
     int hidden_amount;
     int hidden_size;
@@ -61,17 +61,17 @@ struct History {
 };
 
 
-struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled);
+struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled);
 void free_neural_network(struct NeuralNetwork* neural_network);
 
 struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input);
-double* create_next_layer(struct NeuralNetwork* const neural_network, double* const layer, const int layer_size, double** const weights, const int next_layer_size);
+double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size);
 void* create_next_layer_thread(void* params_ptr);
 void free_network_state(struct NetworkState* network_state);
 
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
 void get_loss(long double* loss, double* const output, double* const target, const int output_size);
-long double* get_error(long double* error, struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size);
+void get_error(long double* error, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size);
 void* get_error_thread(void* params_ptr);
 void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, long double* const error, const int error_size);
 void* update_weights_thread(void* params_ptr);
@@ -83,12 +83,12 @@ void free_event(struct Event* event);
 void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 
-long double tanh_function(long double x);
-long double inv_tanh_function(long double x);
-void apply_tanh_to_array(double* dest_array, double* src_array, const int size);
-double* create_tanh_array(double* const array, const int size);
-void apply_inv_tanh_to_array(double* dest_array, double* src_array, const int size);
-double* create_inv_tanh_array(double* const array, const int size);
+long double sigmoid_function(long double x);
+long double inv_sigmoid_function(long double x);
+void apply_sigmoid_to_array(double* dest_array, double* src_array, const int size);
+double* create_sigmoid_array(double* const array, const int size);
+void apply_inv_sigmoid_to_array(double* dest_array, double* src_array, const int size);
+double* create_inv_sigmoid_array(double* const array, const int size);
 double get_max_value(double* const array, const int size);
 int get_max_index(double* const array, const int size);
 
@@ -100,7 +100,7 @@ void copy_double_array(double* dest_array, double* const src_array, const int si
 double* create_double_array_copy(double* const array, const int size);
 double** create_2D_double_array_copy(double** const array, const int i_size, const int j_size);
 double*** create_3D_double_array_copy(double*** const array, const int i_size, const int j_size, const int k_size);
-void copy_biased_array(double* dest_array, double* const src_array, const int size);
+void get_biased_array(double* dest_array, double* const src_array, const int size);
 double* create_biased_array_copy(double* const array, const int size);
 void free_2D_double_array(double** array, const int size);
 void free_3D_double_array(double*** array, const int i_size, const int j_size);

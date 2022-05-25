@@ -1,7 +1,8 @@
 #include "c_DQN.h"
 
 
-long double tanh_function(long double x) {
+long double sigmoid_function(long double x) {
+   /*
     if(x >= 18) {
         return 1;
     }
@@ -9,10 +10,30 @@ long double tanh_function(long double x) {
         return -1;
     }
     return (long double)(((long double)exp(2 * x) - 1) / ((long double)exp(2 * x) + 1));
+    */
+    //if(x <= -700) {
+    //    return 0;
+    //} else if(x >= 36) {
+    //    return 1;
+    //}
+
+    //return (long double)(1 / (1 + (long double)exp(-x)));
+    //return x / (1 + absolute_value(x));
+    //return 0.5 * (x / (1 + absolute_value(x)) + 1);
+
+    long double result = (long double)(1 / (1 + (long double)exp(-x)));
+    if(!isfinite(result)) {
+        result = 1 / (1 + exp(-((float)x)));
+        if(!isfinite(result)) {
+            result = x > 0 ? 1 : 0;
+        }
+    }
+    return result;
 }
 
 
-long double inv_tanh_function(long double x) {
+long double inv_sigmoid_function(long double x) {
+    /*
     if(x > 0.9999999999999995) {
         return 18;
     }
@@ -20,37 +41,52 @@ long double inv_tanh_function(long double x) {
         return -18;
     }
     return (long double)(0.5 * ((long double)log(1 + x) - (long double)log(1 - x)));
-
+    */
+    //if(x < 1E-304) {
+    //    return -700;
+    //} else if(x > 0.999999999999999) {
+    //    return 36;
+    //}
+    //return (long double)((long double)log(x) - (long double)log(1 - x));
+    long double result = (long double)log(x / (1 - x));
+    if(!isfinite(result)) {
+        result = log(x / (1 - ((float)x)));
+        if(!isfinite(result)) {
+            result = x > 0.5 ? 45 : -710;
+        }
+    }
+    return result;
+    
 }
 
 
-void apply_tanh_to_array(double* dest_array, double* src_array, const int size) {
+void apply_sigmoid_to_array(double* dest_array, double* src_array, const int size) {
     for(register int i = 0; i < size; ++i) {
-        dest_array[i] = (double)tanh_function(src_array[i]);
+        dest_array[i] = (double)sigmoid_function(src_array[i]);
     }
 }
 
 
-double* create_tanh_array(double* const array, const int size) {
+double* create_sigmoid_array(double* const array, const int size) {
     double* sigmoid_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        sigmoid_array[i] = (double)tanh_function(array[i]);
+        sigmoid_array[i] = (double)sigmoid_function(array[i]);
     }
     return sigmoid_array;
 }
 
 
-void apply_inv_tanh_to_array(double* dest_array, double* src_array, const int size) {
+void apply_inv_sigmoid_to_array(double* dest_array, double* src_array, const int size) {
     for(register int i = 0; i < size; ++i) {
-        dest_array[i] = (double)inv_tanh_function(src_array[i]);
+        dest_array[i] = (double)inv_sigmoid_function(src_array[i]);
     }
 }
 
 
-double* create_inv_tanh_array(double* const array, const int size) {
+double* create_inv_sigmoid_array(double* const array, const int size) {
     double* inv_sigmoid_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
-        inv_sigmoid_array[i] = (double)inv_tanh_function(array[i]);
+        inv_sigmoid_array[i] = (double)inv_sigmoid_function(array[i]);
     }
     return inv_sigmoid_array;
 }
@@ -149,7 +185,7 @@ double*** create_3D_double_array_copy(double*** const array, const int i_size, c
 }
 
 
-void copy_biased_array(double* dest_array, double* const src_array, const int size) {
+void get_biased_array(double* dest_array, double* const src_array, const int size) {
     dest_array[size] = (double)BIAS_VALUE;
     for(register int i = 0; i < size; ++i) {
         dest_array[i] = (double)src_array[i];
@@ -216,17 +252,17 @@ void free_3D_long_double_array(long double*** array, const int i_size, const int
 
 
 void display_output(struct NetworkState* const network_state) {
-    double output_values [network_state->output_size];
-    apply_inv_tanh_to_array(output_values, network_state->output_layer, network_state->output_size);
-    printf("[");
-    for(register int i = 0; i < network_state->output_size; ++i) {
-        printf(" %lf ", output_values[i]);
-    }
-    printf("]");
-    printf("\t");
     printf("[");
     for(register int i = 0; i < network_state->output_size; ++i) {
         printf(" %lf ", network_state->output_layer[i]);
+    }
+    printf("]");
+    printf("\t");
+    double output_values [network_state->output_size];
+    apply_inv_sigmoid_to_array(output_values, network_state->output_layer, network_state->output_size);
+    printf("[");
+    for(register int i = 0; i < network_state->output_size; ++i) {
+        printf(" %lf ", output_values[i]);
     }
     printf("]");
     fflush(stdout);

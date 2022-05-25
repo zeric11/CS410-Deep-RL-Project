@@ -58,10 +58,10 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
         double target_output[network_state->output_size];
         copy_double_array(target_output, network_state->output_layer, network_state->output_size);
 
-        double chosen_action_Qvalue = inv_tanh_function(target_output[chosen_action]);
+        double chosen_action_Qvalue = inv_sigmoid_function(target_output[chosen_action]);
         //double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
         double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
-        target_output[chosen_action] = tanh_function(new_Qvalue);
+        target_output[chosen_action] = sigmoid_function(new_Qvalue);
 
         if(!event->next_event) {
             execute_back_propagation(neural_network, network_state, target_output);
@@ -69,9 +69,9 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
             last_event = event;
         }
         event = event->next_event;
-        //next_state_max_Qvalue = inv_tanh_function(get_max_value(target_output, network_state->output_size));
+        next_state_max_Qvalue = inv_sigmoid_function(get_max_value(target_output, network_state->output_size));
         //next_state_max_Qvalue = new_Qvalue;
-        next_state_max_Qvalue += reward;
+        //next_state_max_Qvalue += reward;
     }
     if(last_event) {
         free_event(last_event->next_event);
@@ -99,17 +99,17 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
 
         copy_double_array(target_outputs[i], network_state->output_layer, network_state->output_size);
 
-        double chosen_action_Qvalue = inv_tanh_function(target_outputs[i][chosen_action]);
+        double chosen_action_Qvalue = inv_sigmoid_function(target_outputs[i][chosen_action]);
         //double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
         double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
-        target_outputs[i][chosen_action] = tanh_function(new_Qvalue);
+        target_outputs[i][chosen_action] = sigmoid_function(new_Qvalue);
 
         //printf("New Q-value: %lf\n", new_Qvalue);
 
         event = event->next_event;
-        //next_state_max_Qvalue = inv_tanh_function(get_max_value(target_outputs[i], network_state->output_size));
+        next_state_max_Qvalue = inv_sigmoid_function(get_max_value(target_outputs[i], network_state->output_size));
         //next_state_max_Qvalue = new_Qvalue;
-        next_state_max_Qvalue += reward;
+        //next_state_max_Qvalue += reward;
     }
 
     for(register int i = history->size - 1; i >= 0; --i) {

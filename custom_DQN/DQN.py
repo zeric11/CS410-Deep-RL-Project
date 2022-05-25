@@ -91,6 +91,12 @@ class NetworkState:
         output_layer = c_lib.get_output_layer(self.c_network_state)
         return [i for i in output_layer.contents]
 
+    #def get_output(self) -> List[float]:
+    #    c_lib.get_output.argtype = POINTER(c_NetworkState)
+    #    c_lib.get_output.restype = POINTER(c_double * self.get_output_size())
+    #    output = c_lib.get_output(self.c_network_state)
+    #    return [i for i in output.contents]
+
     def choose_action(self) -> int:
         c_lib.choose_action.argtype = POINTER(c_NetworkState)
         c_lib.choose_action.restype = c_int
@@ -104,22 +110,23 @@ class NetworkState:
 class NeuralNetwork:
     def __init__(self, input_size: int, hidden_amount: int, hidden_size: int, output_size: int, learning_rate: float, momentum_value: float, momentum_enabled: bool) -> None:
         self.c_neural_network = POINTER(c_NeuralNetwork)
-        c_lib.create_network.argtypes = (c_int, c_int, c_int, c_int, c_double, c_double, c_int)
-        c_lib.create_network.restype = POINTER(c_NeuralNetwork)
+        c_lib.create_neural_network.argtypes = (c_int, c_int, c_int, c_int, c_double, c_double, c_int)
+        c_lib.create_neural_network.restype = POINTER(c_NeuralNetwork)
         c_momentum_enabled = 1 if momentum_enabled else 0
-        self.c_neural_network = c_lib.create_network(input_size, hidden_amount, hidden_size, output_size, learning_rate, momentum_value, c_momentum_enabled)
+        self.c_neural_network = c_lib.create_neural_network(input_size, hidden_amount, hidden_size, output_size, learning_rate, momentum_value, c_momentum_enabled)
 
     def __del__(self):
         c_lib.free_neural_network.argtype = POINTER(c_NeuralNetwork)
         c_lib.free_neural_network(self.c_neural_network)
 
     def execute_forward_propagation(self, input: List[float]) -> NetworkState:
+        #return NetworkState(neural_network_c.execute_forward_propagation(self.network_c, input))
         len_input = len(input)
         c_lib.execute_forward_propagation.argtype = POINTER(c_double * len_input)
         c_lib.execute_forward_propagation.restype = POINTER(c_NetworkState)
         return NetworkState(c_lib.execute_forward_propagation(self.c_neural_network, (c_double * len_input)(*input)))
 
-    def execute_back_progagation(self, network_state: NetworkState, target_output: List[float]) -> None:
+    def execute_back_propagation(self, network_state: NetworkState, target_output: List[float]) -> None:
         len_target = len(target_output)
         c_lib.execute_back_propagation.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_NetworkState), POINTER(c_double * len_target))
         c_lib.execute_back_propagation(self.c_neural_network, network_state.c_network_state, (c_double * len_target)(*target_output))
@@ -144,6 +151,10 @@ class History:
         c_lib.add_event.argtypes = (POINTER(c_History), POINTER(c_NetworkState), c_int, c_double)
         c_lib.add_event(self.c_history, network_state.c_network_state, chosen_action, reward)
         network_state.c_network_state = None
+
+    #def update_neural_network_pop_amount(self, neural_network: NeuralNetwork, pop_amount: int, alpha: float, gamma: float) -> None:
+    #    c_lib.perform_batch_update_pop_amount.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_int, c_double, c_double)
+    #    c_lib.perform_batch_update_pop_amount(neural_network.c_neural_network, self.c_history, pop_amount, alpha, gamma)
 
     def update_neural_network_last_event(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
         c_lib.perform_batch_update_last.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)

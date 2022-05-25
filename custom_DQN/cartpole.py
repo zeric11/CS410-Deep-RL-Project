@@ -28,7 +28,7 @@ class ConvLayer:
                 r = int(rgb_values[i][j][0])
                 g = int(rgb_values[i][j][1])
                 b = int(rgb_values[i][j][2])
-                new_input.append((r + g + b) / 3)
+                new_input.append((r + g + b) / (3 * 255))
         return new_input
 
     def generate_filtered_input(self, rgb_values) -> List[float]:
@@ -40,7 +40,7 @@ class ConvLayer:
                     g = int(rgb_values[i + i_index][j + j_index][1])
                     b = int(rgb_values[i + i_index][j + j_index][2])
                     value += filter[i][j] * ((r + g + b) / 3)
-            return value
+            return value / 255
 
         if(len(self.filters) == 0):
             return self.generate_filtered_input(rgb_values)
@@ -79,15 +79,15 @@ def main():
     params.hidden_amount = 5
     params.hidden_size = 100
     params.output_size = 2
-    params.learning_rate = 0.0005
-    params.momentum_value = 0.5
+    params.learning_rate = 0.000001
+    params.momentum_value = 0.01
     params.momentum_enabled = False
     params.alpha = 0.001
-    params.gamma = 0.75
+    params.gamma = 0.9
     params.epsilon = 00
-    params.epsilon_decay = 0.5
-    params.batch_size = 300
-    params.episodes_amount = 1000
+    params.epsilon_decay = 1
+    params.batch_size = 00
+    params.episodes_amount = 10000
     params.display_outputs_enabled = True
     params.conv_layer = ConvLayer()
     params.filters_enabled = False
@@ -99,8 +99,8 @@ def main():
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 1")
-    plt.savefig("Test 1")
+    plt.title("Test 2")
+    plt.savefig("Test 2")
     plt.show()
 
 

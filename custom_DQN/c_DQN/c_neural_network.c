@@ -1,10 +1,8 @@
 #include "c_DQN.h"
 
 
-struct NeuralNetwork* create_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled) {
+struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled) {
     struct NeuralNetwork* neural_network = (struct NeuralNetwork*)malloc(sizeof(struct NeuralNetwork));
-
-    neural_network->max_threads = 8;
 
     neural_network->input_size = input_size;
     neural_network->hidden_amount = hidden_amount;
@@ -100,11 +98,11 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
     // As the network propagates through each layer, the layer that results from each step is stored in the network_state.
     network_state->input_layer = create_double_array_copy(input, input_size);
     network_state->hidden_layers = (double**)malloc(hidden_amount * sizeof(double*));
-    network_state->hidden_layers[0] = create_next_layer(neural_network, network_state->input_layer, input_size, neural_network->input_weights, hidden_size);
+    network_state->hidden_layers[0] = create_next_layer(network_state->input_layer, input_size, neural_network->input_weights, hidden_size);
     for(register int i = 1; i < hidden_amount; ++i) {
-        network_state->hidden_layers[i] = create_next_layer(neural_network, network_state->hidden_layers[i - 1], hidden_size, neural_network->hidden_weights[i - 1], hidden_size);
+        network_state->hidden_layers[i] = create_next_layer(network_state->hidden_layers[i - 1], hidden_size, neural_network->hidden_weights[i - 1], hidden_size);
     }
-    network_state->output_layer = create_next_layer(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_size);
+    network_state->output_layer = create_next_layer(network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_size);
     
     return network_state;
 }
@@ -130,22 +128,22 @@ void* create_next_layer_thread(void* params_ptr) {
     double* next_layer = params->next_layer;
 
     for(register int i = starting_index; i < starting_index + job_size; ++i) {
-        long double total = 0;
+        long double sum = 0;
         for(register int j = 0; j < layer_size; ++j) {
-            total += layer[j] * weights[j][i];
+            sum += layer[j] * weights[j][i];
         }
-        next_layer[i] = tanh_function(total);
+        next_layer[i] = sigmoid_function(sum);
     }
 }
 
 
-double* create_next_layer(struct NeuralNetwork* const neural_network, double* const layer, const int layer_size, double** const weights, const int next_layer_size) {
+double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size) {
     int biased_layer_size = layer_size + 1;
     double biased_layer[biased_layer_size];
-    copy_biased_array(biased_layer, layer, layer_size);
+    get_biased_array(biased_layer, layer, layer_size);
 
     double* next_layer = (double*)malloc(next_layer_size * sizeof(double));
-    int thread_amount = (next_layer_size < neural_network->max_threads) ? 1 : neural_network->max_threads;
+    int thread_amount = (next_layer_size < MAX_THREADS) ? 1 : MAX_THREADS;
     int job_size = (int)(next_layer_size / thread_amount);
     int last_job_size = next_layer_size - (job_size * (thread_amount - 1));
 
@@ -176,21 +174,27 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
     const int hidden_size = neural_network->hidden_size;
     const int output_size = neural_network->output_size;
 
+    // The output and hidden errors are stack allocated below, 
+    // so if the size or amount of layers is too large, this will seg-fault. 
+    // Use malloc instead if this is the case.
+
     long double output_error[output_size];
     get_loss(output_error, network_state->output_layer, target_output, output_size);
 
     long double hidden_errors[hidden_amount][hidden_size];
-    get_error(hidden_errors[hidden_amount - 1], neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
+    get_error(hidden_errors[hidden_amount - 1], network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, output_error, output_size);
 
-    for(register int i = hidden_amount - 2; i >= 0; --i) {
-        get_error(hidden_errors[i], neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], hidden_errors[i + 1], hidden_size);
+    for(register int i = 0; i < hidden_amount - 1; ++i) {
+        int index = hidden_amount - 2 - i;
+        get_error(hidden_errors[index], network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], hidden_errors[index + 1], hidden_size);
     }
 
     // Current weights are updated based on the errors calculated from the weights and layers
     // that were saved into network_state during the forward propagation step.
     update_weights(neural_network, network_state->hidden_layers[hidden_amount - 1], hidden_size, neural_network->output_weights, neural_network->delta_output_weights, output_error, output_size);
-    for(register int i = hidden_amount - 2; i >= 0; --i) {
-        update_weights(neural_network, network_state->hidden_layers[i], hidden_size, neural_network->hidden_weights[i], neural_network->delta_hidden_weights[i], hidden_errors[i + 1], hidden_size);
+    for(register int i = 0; i < hidden_amount - 1; ++i) {
+        int index = hidden_amount - 2 - i;
+        update_weights(neural_network, network_state->hidden_layers[index], hidden_size, neural_network->hidden_weights[index], neural_network->delta_hidden_weights[index], hidden_errors[index + 1], hidden_size);
     }
     update_weights(neural_network, network_state->input_layer, input_size, neural_network->input_weights, neural_network->delta_input_weights, hidden_errors[0], hidden_size);
 }
@@ -198,7 +202,8 @@ void execute_back_propagation(struct NeuralNetwork* const neural_network, struct
 
 void get_loss(long double* loss, double* const output, double* const target, const int output_size) {
     for(register int i = 0; i < output_size; ++i) {
-        loss[i] = (1 - ((long double)output[i] * (long double)output[i])) * ((long double)output[i] - (long double)target[i]);
+        loss[i] = (long double)output[i] * (1 - (long double)output[i]) * ((long double)output[i] - (long double)target[i]);
+        //loss[i] = (1 - ((long double)output[i] * (long double)output[i])) * ((long double)output[i] - (long double)target[i]);
         //loss[i] = (1 - ((long double)output[i] * (long double)output[i])) * ((long double)target[i] - (long double)output[i]);
     }
 }
@@ -230,13 +235,14 @@ void* get_error_thread(void* params_ptr) {
         for(register int j = 0; j < previous_error_size; ++j) {
             sum += (long double)weights[i][j] * (long double)previous_error[j];
         }
-        error[i] = (1 - ((long double)layer[i] * (long double)layer[i])) * (long double)(sum);
+        error[i] = (long double)layer[i] * (1 - (long double)layer[i]) * (long double)sum;
+        //error[i] = (1 - ((long double)layer[i] * (long double)layer[i])) * (long double)(sum);
     }
 }
 
 
-long double* get_error(long double* error, struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size) {
-    int thread_amount = layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
+void get_error(long double* error, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size) {
+    int thread_amount = layer_size < MAX_THREADS ? 1 : MAX_THREADS;
     thread_amount = 1;
     int job_size = (int)(layer_size / thread_amount);
     int last_job_size = layer_size - (job_size * (thread_amount - 1));
@@ -291,7 +297,7 @@ void* update_weights_thread(void* params_ptr) {
     for(register int i = starting_index; i < starting_index + iterations; ++i) {
         for(register int j = 0; j < error_size; ++j) {
             long double new_value = (long double)weights[i][j] - ((long double)learning_rate * (long double)layer[i] * (long double)error[j]);
-            new_value += momentum_enabled ? (long double)momentum_value * (long double)delta_weights[i][j] : 0;
+            new_value += momentum_enabled ? ((long double)delta_weights[i][j] * (long double)momentum_value) : 0;
             delta_weights[i][j] = (long double)new_value - (long double)weights[i][j];
             weights[i][j] = new_value;
         }
@@ -302,9 +308,9 @@ void* update_weights_thread(void* params_ptr) {
 void update_weights(struct NeuralNetwork* neural_network, double* const layer, const int layer_size, double** weights, double** delta_weights, long double* const error, const int error_size) {
     int biased_layer_size = layer_size + 1;
     double biased_layer[biased_layer_size];
-    copy_biased_array(biased_layer, layer, layer_size);
+    get_biased_array(biased_layer, layer, layer_size);
 
-    int thread_amount = biased_layer_size < neural_network->max_threads ? 1 : neural_network->max_threads;
+    int thread_amount = biased_layer_size < MAX_THREADS ? 1 : MAX_THREADS;
     thread_amount = 1;
     int job_size = (int)(biased_layer_size / thread_amount);
     int last_job_size = biased_layer_size - (job_size * (thread_amount - 1));
@@ -331,6 +337,3 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
     }
     
 }
-
-
-
