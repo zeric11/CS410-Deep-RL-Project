@@ -1,7 +1,7 @@
 #include "c_DQN.h"
 
 
-struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled) {
+struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled, int randomize_weights) {
     struct NeuralNetwork* neural_network = (struct NeuralNetwork*)malloc(sizeof(struct NeuralNetwork));
 
     neural_network->input_size = input_size;
@@ -16,9 +16,10 @@ struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, i
     srand((int)time(NULL));
 
     // Allocating weights.
-    neural_network->input_weights = create_2D_double_array(input_size + 1, hidden_size, 1);
-    neural_network->hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size + 1, hidden_size, 1);
-    neural_network->output_weights = create_2D_double_array(hidden_size + 1, output_size, 1);
+    randomize_weights = randomize_weights == 0 ? 0 : 1;
+    neural_network->input_weights = create_2D_double_array(input_size + 1, hidden_size, randomize_weights);
+    neural_network->hidden_weights = create_3D_double_array(hidden_amount - 1, hidden_size + 1, hidden_size, randomize_weights);
+    neural_network->output_weights = create_2D_double_array(hidden_size + 1, output_size, randomize_weights);
 
     // Allocating delta weights.
     neural_network->delta_input_weights = create_2D_double_array(input_size + 1, hidden_size, 0);
@@ -82,7 +83,7 @@ void free_network_state(struct NetworkState* network_state) {
 }
 
 
-struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input) {
+struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, struct Input* input) {
     const int input_size = neural_network->input_size;
     const int hidden_amount = neural_network->hidden_amount;
     const int hidden_size = neural_network->hidden_size;
@@ -96,7 +97,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
     network_state->output_size = output_size;
 
     // As the network propagates through each layer, the layer that results from each step is stored in the network_state.
-    network_state->input_layer = create_double_array_copy(input, input_size);
+    network_state->input_layer = create_input_layer(input);
     network_state->hidden_layers = (double**)malloc(hidden_amount * sizeof(double*));
     network_state->hidden_layers[0] = create_next_layer(network_state->input_layer, input_size, neural_network->input_weights, hidden_size);
     for(register int i = 1; i < hidden_amount; ++i) {
@@ -298,7 +299,7 @@ void* update_weights_thread(void* params_ptr) {
         for(register int j = 0; j < error_size; ++j) {
             long double new_value = (long double)weights[i][j] - ((long double)learning_rate * (long double)layer[i] * (long double)error[j]);
             new_value += momentum_enabled ? ((long double)delta_weights[i][j] * (long double)momentum_value) : 0;
-            delta_weights[i][j] = (long double)new_value - (long double)weights[i][j];
+            delta_weights[i][j] = new_value - (long double)weights[i][j];
             weights[i][j] = new_value;
         }
     }

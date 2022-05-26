@@ -1,5 +1,7 @@
 from typing import List
+import numpy as np
 from ctypes import *
+from numpy.ctypeslib import ndpointer
 
 
 c_lib = cdll.LoadLibrary("./c_DQN/c_dqn.so")
@@ -43,8 +45,25 @@ class c_History(Structure):
               ("event_head", c_Event)]
 
 
+class c_Image(Structure):
+    _fields_=[("pixels", POINTER(c_double)),
+              ("size", c_int)]
+
+
+class c_Input(Structure):
+    _fields_=[("images", POINTER(POINTER("c_Image"))),
+              ("images_size", c_int),
+              ("max_images_size", c_int),
+              ("image_height", c_int),
+              ("image_width", c_int),
+              ("height_downscale_factor", c_int),
+              ("width_downscale_factor", c_int),
+              ("image_size", c_int),
+              ("input_layer_size", c_int)]
+
+
 class NetworkState:
-    def __init__(self, c_network_state) -> None:
+    def __init__(self, c_network_state):
         self.c_network_state = POINTER(c_NetworkState)
         self.c_network_state: c_NetworkState = c_network_state
 
@@ -108,23 +127,23 @@ class NetworkState:
 
 
 class NeuralNetwork:
-    def __init__(self, input_size: int, hidden_amount: int, hidden_size: int, output_size: int, learning_rate: float, momentum_value: float, momentum_enabled: bool) -> None:
+    def __init__(self, input_size: int, hidden_amount: int, hidden_size: int, output_size: int, learning_rate: float, momentum_value: float, momentum_enabled: bool, randomize_weights: bool):
         self.c_neural_network = POINTER(c_NeuralNetwork)
-        c_lib.create_neural_network.argtypes = (c_int, c_int, c_int, c_int, c_double, c_double, c_int)
+        c_lib.create_neural_network.argtypes = (c_int, c_int, c_int, c_int, c_double, c_double, c_int, c_int)
         c_lib.create_neural_network.restype = POINTER(c_NeuralNetwork)
         c_momentum_enabled = 1 if momentum_enabled else 0
-        self.c_neural_network = c_lib.create_neural_network(input_size, hidden_amount, hidden_size, output_size, learning_rate, momentum_value, c_momentum_enabled)
+        c_randomize_weights = 1 if randomize_weights else 0
+        self.c_neural_network = c_lib.create_neural_network(input_size, hidden_amount, hidden_size, output_size, learning_rate, momentum_value, c_momentum_enabled, c_randomize_weights)
 
     def __del__(self):
         c_lib.free_neural_network.argtype = POINTER(c_NeuralNetwork)
         c_lib.free_neural_network(self.c_neural_network)
 
-    def execute_forward_propagation(self, input: List[float]) -> NetworkState:
+    def execute_forward_propagation(self, input_layer: "Input") -> NetworkState:
         #return NetworkState(neural_network_c.execute_forward_propagation(self.network_c, input))
-        len_input = len(input)
-        c_lib.execute_forward_propagation.argtype = POINTER(c_double * len_input)
+        c_lib.execute_forward_propagation.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_Input))
         c_lib.execute_forward_propagation.restype = POINTER(c_NetworkState)
-        return NetworkState(c_lib.execute_forward_propagation(self.c_neural_network, (c_double * len_input)(*input)))
+        return NetworkState(c_lib.execute_forward_propagation(self.c_neural_network, input_layer.c_input))
 
     def execute_back_propagation(self, network_state: NetworkState, target_output: List[float]) -> None:
         len_target = len(target_output)
@@ -133,7 +152,7 @@ class NeuralNetwork:
 
 
 class History:
-    def __init__(self) -> None:
+    def __init__(self):
         self.c_history = POINTER(c_History)
         c_lib.create_history.restype = POINTER(c_History)
         self.c_history = c_lib.create_history()
@@ -163,4 +182,28 @@ class History:
     def update_neural_network_all_events(self, neural_network: NeuralNetwork, alpha: float, gamma: float) -> None:
         c_lib.perform_batch_update_all.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_History), c_double, c_double)
         c_lib.perform_batch_update_all(neural_network.c_neural_network, self.c_history, alpha, gamma)
+
+
+class Input:
+    def __init__(self, image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size):
+        self.image_height = image_height
+        self.image_width = image_width
+        self.c_input = POINTER(c_Input)
+        c_lib.create_input.argtypes = (c_int, c_int, c_int, c_int, c_int)
+        c_lib.create_input.restype = POINTER(c_Input)
+        self.c_input = c_lib.create_input(image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size)
+
+    def __del__(self):
+        c_lib.free_input.argtype = POINTER(c_Input)
+        c_lib.free_input(self.c_input)
+
+    def add_image(self, rgb_values) -> None:
+        c_lib.add_image.argtypes = (POINTER(c_Input), ndpointer(c_uint8))
+        c_lib.add_image(self.c_input, rgb_values.flatten())
+
+    def clear_images(self) -> None:
+        c_lib.clear_images.argtype = POINTER(c_Input)
+        c_lib.clear_images(self.c_input)
+
+    
 

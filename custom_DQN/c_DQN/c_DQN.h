@@ -61,12 +61,30 @@ struct History {
 };
 
 
-struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled);
-void free_neural_network(struct NeuralNetwork* neural_network);
+struct Image {
+    double* pixels;
+    int size;
+};
 
-struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, double* const input);
+
+struct Input {
+    struct Image** images;
+    int current_images_size;
+    int max_images_size;
+    int image_height;
+    int image_width;
+    int height_downscale_factor;
+    int width_downscale_factor;
+    int image_size;
+    int input_layer_size;
+};
+
+
+struct NeuralNetwork* create_neural_network(int input_size, int hidden_amount, int hidden_size, int output_size, double learning_rate, double momentum_value, int momentum_enabled, int randomize_weights);
+struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, struct Input* input);
 double* create_next_layer(double* const layer, const int layer_size, double** const weights, const int next_layer_size);
 void* create_next_layer_thread(void* params_ptr);
+void free_neural_network(struct NeuralNetwork* neural_network);
 void free_network_state(struct NetworkState* network_state);
 
 void execute_back_propagation(struct NeuralNetwork* const neural_network, struct NetworkState* const network_state, double* const target_output);
@@ -82,6 +100,21 @@ void add_event(struct History* history, struct NetworkState* network_state, int 
 void free_event(struct Event* event);
 void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
+
+
+struct Input* create_input(int image_height, int image_width, int height_downscale_factor, int width_downscale_factor, int max_images_size);
+void add_image(struct Input* input, __uint8_t* rgb_values);
+double* create_input_layer(struct Input* input);
+void clear_images(struct Input* input);
+void free_input(struct Input* input);
+void free_image(struct Image* image);
+struct Image* create_image_copy(struct Image* src_image);
+
+
+
+
+
+
 
 long double sigmoid_function(long double x);
 long double inv_sigmoid_function(long double x);
@@ -119,6 +152,7 @@ double* get_output(struct NetworkState* const network_state);
 int choose_action(struct NetworkState* const network_state);
 
 void display_output(struct NetworkState* const network_state);
+void display_image(struct Image* image, int height, int width);
 
 
 #endif

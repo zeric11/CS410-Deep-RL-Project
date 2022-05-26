@@ -56,7 +56,6 @@ long double inv_sigmoid_function(long double x) {
         }
     }
     return result;
-    
 }
 
 
