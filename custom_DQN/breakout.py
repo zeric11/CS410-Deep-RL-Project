@@ -1,11 +1,12 @@
 # https://www.youtube.com/watch?v=hCeJeq8U0lo
+# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 breakout.py
 
 import faulthandler
 faulthandler.enable()
 
 from typing import List, Tuple
 import random
-from DQN import Input, NetworkState, NeuralNetwork, History
+from DQN import ConvLayer, NetworkState, NeuralNetwork, History
 #from conv_layer import ConvLayer
 import numpy as np
 #from ale_py import ALEInterface
@@ -17,13 +18,13 @@ import matplotlib.pyplot as plt
 class TrainingParams:
     def __init__(self) -> None:
         self.env_name: str = None
-        self.image_height: int = None
-        self.image_width: int = None
-        self.image_height_downscale_factor: int = None
-        self.image_width_downscale_factor: int = None
+        self.initial_image_height: int = None
+        self.initial_image_width: int = None
+        self.final_image_height: int = None
+        self.final_image_width: int = None
         self.step_skip_amount: int = None
+        self.filters: List[List[List[int]]] = None
         self.neural_network: NeuralNetwork = None
-        self.input_size: int = None
         self.hidden_amount: int = None
         self.hidden_size: int = None
         self.output_size: int = None
@@ -43,36 +44,45 @@ class TrainingParams:
 def main():
     params = TrainingParams()
     params.env_name = "Breakout-v0"
-    params.image_height = 210
-    params.image_width = 160
-    params.image_height_downscale_factor = 3
-    params.image_width_downscale_factor = 2
+    params.initial_image_height = 210
+    params.initial_image_width = 160
+    params.final_image_height = 84
+    params.final_image_width = 84
     params.step_skip_amount = 4
     params.neural_network = None
-    params.input_size = int((params.image_height / params.image_height_downscale_factor) * \
-                            (params.image_width / params.image_width_downscale_factor) * \
-                            (params.step_skip_amount))
-    params.hidden_amount = 5
-    params.hidden_size = 100
+    params.hidden_amount = 2
+    params.hidden_size = 1000
     params.output_size = 4
-    params.learning_rate = 0.001
+    params.learning_rate = 0.0001
     params.momentum_value = 0.1
     params.momentum_enabled = True
-    params.randomize_weights = False
-    params.alpha = 0.01
-    params.gamma = 0.95
-    params.epsilon = 00
-    params.epsilon_decay = 1
-    params.batch_size = 300
+    params.randomize_weights = True
+    params.alpha = 0.1
+    params.gamma = 0.9
+    params.epsilon = 100
+    params.epsilon_decay = 0.01
+    params.batch_size = 30
     params.episodes_amount = 1000
     params.display_outputs_enabled = True
+    params.filters = [[[-1,-1,-1], 
+                       [ 1, 1, 1], # Top
+                       [ 0, 0, 0]],
+                      [[ 0, 0, 0], 
+                       [ 1, 1, 1], # Bottom
+                       [-1,-1,-1]],
+                      [[-1, 1, 0], 
+                       [-1, 1, 0], # Left
+                       [-1, 1, 0]],
+                      [[ 0, 1,-1], 
+                       [ 0, 1,-1], # Right
+                       [ 0, 1,-1]]]
 
     x_values, y_values = training(params)
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 3")
-    plt.savefig("Test 3")
+    plt.title("Test 7")
+    plt.savefig("Test 7")
     plt.show()
 
 
@@ -82,11 +92,14 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
     env = gym.make(params.env_name, render_mode="rgb_array")
     if not params.neural_network:
-        params.neural_network = NeuralNetwork(params.input_size, params.hidden_amount, params.hidden_size, params.output_size, \
+        input_size = params.final_image_height * params.final_image_width * params.step_skip_amount
+        params.neural_network = NeuralNetwork(input_size, params.hidden_amount, params.hidden_size, params.output_size, \
                                               params.learning_rate, params.momentum_value, params.momentum_enabled, params.randomize_weights)
 
-    input_layer = Input(params.image_height, params.image_width, params.image_height_downscale_factor, \
-                        params.image_width_downscale_factor, params.step_skip_amount)
+    conv_layer = ConvLayer(params.initial_image_height, params.initial_image_width, params.final_image_height, \
+                        params.final_image_width, params.step_skip_amount)
+    for filter in params.filters:
+        conv_layer.add_filter(filter)
 
     viewer = rendering.SimpleImageViewer()
 
@@ -104,7 +117,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     for episode in range(1, params.episodes_amount + 1):
         history = History()
 
-        input_layer.add_image(env.reset())
+        conv_layer.clear_images()
+        conv_layer.add_image(env.reset())
 
         score = 0
         prev_score = 0
@@ -114,13 +128,13 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         step_number = 1
         step_batch_size = 4
         afk_counter = 0
-        afk_max_amount = 100
+        afk_max_amount = 150
         afk_reward = -1000
         afk_reward_growth = -5
         #reward_coefficient = 5
         while not done:
-            network_state = params.neural_network.execute_forward_propagation(input_layer)
-            input_layer.clear_images()
+            network_state = params.neural_network.execute_forward_propagation(conv_layer)
+            conv_layer.clear_images()
             action = random.randrange(0, params.output_size) if random.randrange(0, 100) < epsilon else network_state.choose_action()
 
             step_batch_reward = 0
@@ -129,8 +143,9 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
 
                 observation, reward, done, info = env.step(action)
+                score += reward
 
-                input_layer.add_image(observation)
+                conv_layer.add_image(observation)
 
                 if score <= prev_score:
                     afk_counter += 1
@@ -140,7 +155,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
                 lives = info["lives"]
                 if lives < prev_lives:
-                    reward -= 5 * (5 - lives)
+                    #reward -= 5 * (5 - lives)
+                    reward -= 1
                     prev_lives = lives
                     afk_counter = 0
 
@@ -155,27 +171,26 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                     network_state.display_output()
                     print("\tAction:", action, "\tReward:", reward)
 
+                step_number += 1
                 step_batch_reward += reward
 
-
             history.add_event(network_state, action, step_batch_reward)
-            #if history.get_length() >= params.batch_size:
-            if history.get_length() >= episode:
+            if history.get_length() >= params.batch_size:
+            #if history.get_length() >= episode:
                 # After certain number of steps has been completed, we are left with a "history" of network_states.
                 # A batch update must be performed to update the neural network where the reward earned at the 
                 # last action is passed down through the previous actions and the network's weights are adjusted 
                 # according to these rewards.
                 history.update_neural_network_last_event(params.neural_network, params.alpha, params.gamma)
 
-            score += step_batch_reward
-            step_number += 1
-
         history.update_neural_network_all_events(params.neural_network, params.alpha, params.gamma)
 
-        epsilon -= params.epsilon_decay
+        epsilon -= epsilon * 0.01
+        if epsilon < 0.01:
+            epsilon = 0
 
-        print("Episode: {}, Score: {}".format(episode + 1, score))
-        x_values.append(episode + 1)
+        print("Episode: {}, Score: {}".format(episode, score))
+        x_values.append(episode)
         y_values.append(score)
 
     env.close()

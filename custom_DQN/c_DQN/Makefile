@@ -1,12 +1,12 @@
 # Compile for Python
 dqn: c_neural_network.c c_history.c utils.c
-	gcc -O3 -pthread -fPIC -shared c_neural_network.c c_history.c c_input.c utils.c -o c_dqn.so -lpthread -lm
+	gcc -O3 -pthread -fPIC -shared c_neural_network.c c_history.c c_conv_layer.c utils.c -o c_dqn.so -lpthread -lm
 
 
 # Compile for Testing
 # Run with: valgrind --tool=memcheck --leak-check=yes -s ./dqn_test
 dqn_test: testing.c c_neural_network.c c_history.c utils.c
-	gcc -O3 -pthread -g testing.c c_neural_network.c c_history.c c_input.c utils.c -o c_dqn_test -lpthread -lm
+	gcc -O3 -pthread -g testing.c c_neural_network.c c_history.c c_conv_layer.c utils.c -o c_dqn_test -lpthread -lm
 
 
 clean_dqn:

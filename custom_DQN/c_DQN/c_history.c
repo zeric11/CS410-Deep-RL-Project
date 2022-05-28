@@ -59,8 +59,8 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
         copy_double_array(target_output, network_state->output_layer, network_state->output_size);
 
         double chosen_action_Qvalue = inv_sigmoid_function(target_output[chosen_action]);
-        //double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
-        double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
+        double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
+        //double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
         if(new_Qvalue != 0) {
             target_output[chosen_action] = sigmoid_function(new_Qvalue);
         }
@@ -102,8 +102,8 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
         copy_double_array(target_outputs[i], network_state->output_layer, network_state->output_size);
 
         double chosen_action_Qvalue = inv_sigmoid_function(target_outputs[i][chosen_action]);
-        //double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
-        double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
+        double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
+        //double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
         if(new_Qvalue != 0) {
             target_outputs[i][chosen_action] = sigmoid_function(new_Qvalue);
         }

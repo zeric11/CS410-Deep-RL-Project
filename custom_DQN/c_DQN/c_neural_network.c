@@ -83,7 +83,7 @@ void free_network_state(struct NetworkState* network_state) {
 }
 
 
-struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, struct Input* input) {
+struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neural_network, struct ConvLayer* conv_layer) {
     const int input_size = neural_network->input_size;
     const int hidden_amount = neural_network->hidden_amount;
     const int hidden_size = neural_network->hidden_size;
@@ -97,7 +97,7 @@ struct NetworkState* execute_forward_propagation(struct NeuralNetwork* const neu
     network_state->output_size = output_size;
 
     // As the network propagates through each layer, the layer that results from each step is stored in the network_state.
-    network_state->input_layer = create_input_layer(input);
+    network_state->input_layer = create_input_layer(conv_layer);
     network_state->hidden_layers = (double**)malloc(hidden_amount * sizeof(double*));
     network_state->hidden_layers[0] = create_next_layer(network_state->input_layer, input_size, neural_network->input_weights, hidden_size);
     for(register int i = 1; i < hidden_amount; ++i) {
@@ -224,14 +224,14 @@ struct GetErrorThreadParams {
 void* get_error_thread(void* params_ptr) {
     struct GetErrorThreadParams* params = (struct GetErrorThreadParams*)params_ptr;
     int starting_index = params->starting_index;
-    int iterations = params->job_size;
+    int job_size = params->job_size;
     double* layer = params->layer;
     double** weights = params->weights; 
     long double* previous_error = params->previous_error; 
     int previous_error_size = params->previous_error_size;
     long double* error = params->error;
 
-    for(register int i = starting_index; i < starting_index + iterations; ++i) {
+    for(register int i = starting_index; i < starting_index + job_size; ++i) {
         long double sum = 0;
         for(register int j = 0; j < previous_error_size; ++j) {
             sum += (long double)weights[i][j] * (long double)previous_error[j];
@@ -244,7 +244,6 @@ void* get_error_thread(void* params_ptr) {
 
 void get_error(long double* error, double* const layer, const int layer_size, double** const weights, long double* const previous_error, const int previous_error_size) {
     int thread_amount = layer_size < MAX_THREADS ? 1 : MAX_THREADS;
-    thread_amount = 1;
     int job_size = (int)(layer_size / thread_amount);
     int last_job_size = layer_size - (job_size * (thread_amount - 1));
     
@@ -285,7 +284,7 @@ struct UpdateWeightsThreadParams {
 void* update_weights_thread(void* params_ptr) {
     struct UpdateWeightsThreadParams* params = (struct UpdateWeightsThreadParams*)params_ptr;
     int starting_index = params->starting_index;
-    int iterations = params->job_size;
+    int job_size = params->job_size;
     double* layer = params->layer;
     double** weights = params->weights;
     double** delta_weights = params->delta_weights;
@@ -295,7 +294,7 @@ void* update_weights_thread(void* params_ptr) {
     long double momentum_value = params->momentum_value;
     int momentum_enabled = params->momentum_enabled;
 
-    for(register int i = starting_index; i < starting_index + iterations; ++i) {
+    for(register int i = starting_index; i < starting_index + job_size; ++i) {
         for(register int j = 0; j < error_size; ++j) {
             long double new_value = (long double)weights[i][j] - ((long double)learning_rate * (long double)layer[i] * (long double)error[j]);
             new_value += momentum_enabled ? ((long double)delta_weights[i][j] * (long double)momentum_value) : 0;
@@ -312,7 +311,6 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
     get_biased_array(biased_layer, layer, layer_size);
 
     int thread_amount = biased_layer_size < MAX_THREADS ? 1 : MAX_THREADS;
-    thread_amount = 1;
     int job_size = (int)(biased_layer_size / thread_amount);
     int last_job_size = biased_layer_size - (job_size * (thread_amount - 1));
 

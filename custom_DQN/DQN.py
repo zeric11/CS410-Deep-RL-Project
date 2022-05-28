@@ -50,7 +50,7 @@ class c_Image(Structure):
               ("size", c_int)]
 
 
-class c_Input(Structure):
+class c_ConvLayer(Structure):
     _fields_=[("images", POINTER(POINTER("c_Image"))),
               ("images_size", c_int),
               ("max_images_size", c_int),
@@ -139,11 +139,11 @@ class NeuralNetwork:
         c_lib.free_neural_network.argtype = POINTER(c_NeuralNetwork)
         c_lib.free_neural_network(self.c_neural_network)
 
-    def execute_forward_propagation(self, input_layer: "Input") -> NetworkState:
+    def execute_forward_propagation(self, conv_layer: "ConvLayer") -> NetworkState:
         #return NetworkState(neural_network_c.execute_forward_propagation(self.network_c, input))
-        c_lib.execute_forward_propagation.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_Input))
+        c_lib.execute_forward_propagation.argtypes = (POINTER(c_NeuralNetwork), POINTER(c_ConvLayer))
         c_lib.execute_forward_propagation.restype = POINTER(c_NetworkState)
-        return NetworkState(c_lib.execute_forward_propagation(self.c_neural_network, input_layer.c_input))
+        return NetworkState(c_lib.execute_forward_propagation(self.c_neural_network, conv_layer.c_conv_layer))
 
     def execute_back_propagation(self, network_state: NetworkState, target_output: List[float]) -> None:
         len_target = len(target_output)
@@ -184,26 +184,34 @@ class History:
         c_lib.perform_batch_update_all(neural_network.c_neural_network, self.c_history, alpha, gamma)
 
 
-class Input:
+class ConvLayer:
     def __init__(self, image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size):
         self.image_height = image_height
         self.image_width = image_width
-        self.c_input = POINTER(c_Input)
+        self.c_conv_layer = POINTER(c_ConvLayer)
         c_lib.create_input.argtypes = (c_int, c_int, c_int, c_int, c_int)
-        c_lib.create_input.restype = POINTER(c_Input)
-        self.c_input = c_lib.create_input(image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size)
+        c_lib.create_input.restype = POINTER(c_ConvLayer)
+        self.c_conv_layer = c_lib.create_input(image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size)
 
     def __del__(self):
-        c_lib.free_input.argtype = POINTER(c_Input)
-        c_lib.free_input(self.c_input)
+        c_lib.free_input.argtype = POINTER(c_ConvLayer)
+        c_lib.free_input(self.c_conv_layer)
+
+    def add_filter(self, filter) -> None:
+        height = len(filter)
+        width = len(filter[0])
+        new_filter = np.array(filter, dtype="double").flatten()
+        c_lib.add_filter.argtypes = (POINTER(c_ConvLayer), ndpointer(c_double), c_int, c_int)
+        c_lib.add_filter(self.c_conv_layer, new_filter, height, width)
 
     def add_image(self, rgb_values) -> None:
-        c_lib.add_image.argtypes = (POINTER(c_Input), ndpointer(c_uint8))
-        c_lib.add_image(self.c_input, rgb_values.flatten())
+        new_image = np.array(rgb_values, dtype="double").flatten()
+        c_lib.add_image.argtypes = (POINTER(c_ConvLayer), ndpointer(c_double))
+        c_lib.add_image(self.c_conv_layer, new_image)
 
     def clear_images(self) -> None:
-        c_lib.clear_images.argtype = POINTER(c_Input)
-        c_lib.clear_images(self.c_input)
+        c_lib.clear_images.argtype = POINTER(c_ConvLayer)
+        c_lib.clear_images(self.c_conv_layer)
 
     
 

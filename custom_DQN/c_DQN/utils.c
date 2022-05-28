@@ -157,6 +157,13 @@ void copy_double_array(double* dest_array, double* const src_array, const int si
 }
 
 
+void copy_2D_double_array(double** dest_array, double** const src_array, const int i_size, const int j_size) {
+    for(register int i = 0; i < i_size; ++i) {
+        copy_double_array(dest_array[i], src_array[i], j_size);
+    }
+}
+
+
 double* create_double_array_copy(double* const array, const int size) {
     double* new_array = (double*)malloc(size * sizeof(double));
     for(register int i = 0; i < size; ++i) {
