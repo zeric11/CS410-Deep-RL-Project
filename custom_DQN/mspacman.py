@@ -1,5 +1,5 @@
 # https://www.youtube.com/watch?v=hCeJeq8U0lo
-# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 breakout.py
+# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 mspacman.py
 
 import faulthandler
 faulthandler.enable()
@@ -24,6 +24,7 @@ class TrainingParams:
         self.final_image_width: int = None
         self.step_skip_amount: int = None
         self.filters: List[List[List[int]]] = None
+        self.filters_amount:int = None
         self.filters_enabled: bool = None
         self.neural_network: NeuralNetwork = None
         self.hidden_amount: int = None
@@ -53,7 +54,7 @@ def main():
     params.neural_network = None
     params.hidden_amount = 2
     params.hidden_size = 1000
-    params.output_size = 4
+    params.output_size = 9
     params.learning_rate = 1
     params.momentum_value = 0.1
     params.momentum_enabled = False
@@ -66,6 +67,7 @@ def main():
     params.episodes_amount = 1000
     params.display_outputs_enabled = True
     params.filters_enabled = True
+    params.filters_amount = 4
     params.filters = [[[-1,-1,-1], 
                        [ 1, 1, 1], # Top
                        [ 0, 0, 0]],
@@ -83,8 +85,8 @@ def main():
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 11")
-    plt.savefig("Test 11")
+    plt.title("Test 2")
+    plt.savefig("Test 2")
     plt.show()
 
 
@@ -93,19 +95,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     y_values = []
 
     env = gym.make(params.env_name, render_mode="rgb_array")
-    if not params.neural_network:
-        input_size = params.final_image_height * params.final_image_width * params.step_skip_amount
-        params.neural_network = NeuralNetwork(input_size, params.hidden_amount, params.hidden_size, params.output_size, \
-                                              params.learning_rate, params.momentum_value, params.momentum_enabled, params.randomize_weights)
-
-    conv_layer = ConvLayer(params.initial_image_height, params.initial_image_width, params.final_image_height, \
-                        params.final_image_width, params.step_skip_amount)
-    if params.filters and params.filters_enabled:
-        for filter in params.filters:
-            conv_layer.add_filter(filter)
-
-    viewer = rendering.SimpleImageViewer()
-
     height, width, channels = env.observation_space.shape
     observ_space = env.observation_space
     action_space = env.action_space
@@ -115,6 +104,21 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
     print("observ_space:", observ_space)
     print("action_space:", action_space)
     print("actions:", env.unwrapped.get_action_meanings())
+
+    if not params.neural_network:
+        input_size = params.final_image_height * params.final_image_width * params.step_skip_amount
+        if params.filters_enabled:
+            input_size *= params.filters_amount
+        params.neural_network = NeuralNetwork(input_size, params.hidden_amount, params.hidden_size, params.output_size, \
+            params.learning_rate, params.momentum_value, params.momentum_enabled, params.randomize_weights)
+
+    conv_layer = ConvLayer(params.initial_image_height, params.initial_image_width, params.final_image_height, \
+        params.final_image_width, params.step_skip_amount)
+    if params.filters and params.filters_enabled:
+        for filter in params.filters:
+            conv_layer.add_filter(filter)
+
+    viewer = rendering.SimpleImageViewer()
 
     epsilon = params.epsilon
     for episode in range(1, params.episodes_amount + 1):
@@ -131,7 +135,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         step_number = 1
         step_batch_size = 4
         afk_counter = 0
-        afk_max_amount = 150
+        afk_max_amount = 300
         afk_reward = -1000
         afk_reward_growth = -5
         #reward_coefficient = 5
@@ -159,7 +163,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
                 lives = info["lives"]
                 if lives < prev_lives:
                     #reward -= 5 * (5 - lives)
-                    reward -= 1
+                    reward -= 100
                     prev_lives = lives
                     afk_counter = 0
 

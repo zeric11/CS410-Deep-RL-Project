@@ -87,9 +87,6 @@ void perform_batch_update_last(struct NeuralNetwork* neural_network, struct Hist
 
 
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma) {
-    //struct Event* events[history->size];
-    //double target_outputs[history->size][neural_network->output_size];
-
     struct Event* event = history->event_head;
     double next_state_max_Qvalue = 0;
     for(register int i = 0; i < history->size; ++i) {
@@ -98,17 +95,13 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
         int chosen_action = event->chosen_action;
         int reward = event->reward;
 
-        //copy_double_array(target_outputs[i], network_state->output_layer, network_state->output_size);
-
         double target_output[network_state->output_size];
         copy_double_array(target_output, network_state->output_layer, network_state->output_size);
 
-        //double chosen_action_Qvalue = inv_sigmoid_function(target_outputs[i][chosen_action]);
         double chosen_action_Qvalue = inv_sigmoid_function(target_output[chosen_action]);
         double new_Qvalue = ((1 - alpha) * chosen_action_Qvalue) + (alpha * (reward + (gamma * next_state_max_Qvalue)));
         //double new_Qvalue = chosen_action_Qvalue + alpha * (reward + (gamma * next_state_max_Qvalue) - chosen_action_Qvalue);
         if(new_Qvalue != 0) {
-            //target_outputs[i][chosen_action] = sigmoid_function(new_Qvalue);
             target_output[chosen_action] = sigmoid_function(new_Qvalue);
         }
 
@@ -118,17 +111,9 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
 
         event = event->next_event;
         next_state_max_Qvalue = inv_sigmoid_function(get_max_value(target_output, network_state->output_size));
-        //next_state_max_Qvalue = inv_sigmoid_function(get_max_value(target_outputs[i], network_state->output_size));
         //next_state_max_Qvalue = new_Qvalue;
         //next_state_max_Qvalue += reward;
     }
-
-    /*
-    for(register int i = history->size - 1; i >= 0; --i) {
-        execute_back_propagation(neural_network, events[i]->network_state, target_outputs[i]);
-    }
-    */
-
     free_event(history->event_head);
     history->event_head = NULL;
     history->size = 0;

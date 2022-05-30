@@ -83,8 +83,8 @@ def main():
     plt.plot(x_values, y_values)
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    plt.title("Test 11")
-    plt.savefig("Test 11")
+    plt.title("Test 1")
+    plt.savefig("Test 1")
     plt.show()
 
 

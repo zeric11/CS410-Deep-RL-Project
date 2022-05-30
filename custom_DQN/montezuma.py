@@ -1,5 +1,5 @@
 # https://www.youtube.com/watch?v=hCeJeq8U0lo
-# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 breakout.py
+# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 montezuma.py
 
 import faulthandler
 faulthandler.enable()

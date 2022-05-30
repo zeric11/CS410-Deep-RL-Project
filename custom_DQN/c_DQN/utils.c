@@ -2,25 +2,6 @@
 
 
 long double sigmoid_function(long double x) {
-   /*
-    if(x >= 18) {
-        return 1;
-    }
-    if(x <= -18) {
-        return -1;
-    }
-    return (long double)(((long double)exp(2 * x) - 1) / ((long double)exp(2 * x) + 1));
-    */
-    //if(x <= -700) {
-    //    return 0;
-    //} else if(x >= 36) {
-    //    return 1;
-    //}
-
-    //return (long double)(1 / (1 + (long double)exp(-x)));
-    //return x / (1 + absolute_value(x));
-    //return 0.5 * (x / (1 + absolute_value(x)) + 1);
-
     long double result = (long double)(1 / (1 + (long double)exp(-x)));
     if(!isfinite(result)) {
         result = 1 / (1 + exp(-((float)x)));
@@ -33,21 +14,6 @@ long double sigmoid_function(long double x) {
 
 
 long double inv_sigmoid_function(long double x) {
-    /*
-    if(x > 0.9999999999999995) {
-        return 18;
-    }
-    if(x < -0.9999999999999995) {
-        return -18;
-    }
-    return (long double)(0.5 * ((long double)log(1 + x) - (long double)log(1 - x)));
-    */
-    //if(x < 1E-304) {
-    //    return -700;
-    //} else if(x > 0.999999999999999) {
-    //    return 36;
-    //}
-    //return (long double)((long double)log(x) - (long double)log(1 - x));
     long double result = (long double)log(x / (1 - x));
     if(!isfinite(result)) {
         result = log(x / (1 - ((float)x)));
