@@ -69,20 +69,18 @@ struct Image {
 
 struct ConvLayer {
     struct Image** images;
-    int current_images_size;
-    int max_images_size;
+    int current_images_amount;
+    int max_images_amount;
 
     int initial_image_height;
     int initial_image_width;
     int final_image_height;
     int final_image_width;
     int final_image_size;
-    int input_layer_size;
 
     int filter_amount;
     int filter_height;
     int filter_width;
-    double* combined_filter;
     double** filters;
 };
 

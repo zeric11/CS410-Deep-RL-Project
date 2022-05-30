@@ -144,13 +144,12 @@ double* create_next_layer(double* const layer, const int layer_size, double** co
     get_biased_array(biased_layer, layer, layer_size);
 
     double* next_layer = (double*)malloc(next_layer_size * sizeof(double));
+
     int thread_amount = (next_layer_size < MAX_THREADS) ? 1 : MAX_THREADS;
     int job_size = (int)(next_layer_size / thread_amount);
     int last_job_size = next_layer_size - (job_size * (thread_amount - 1));
-
     struct CreateNextLayerThreadParams params_list[thread_amount];
     pthread_t threads[thread_amount];
-
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
         params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
@@ -160,7 +159,6 @@ double* create_next_layer(double* const layer, const int layer_size, double** co
         params_list[i].next_layer = next_layer;
         pthread_create(&threads[i], NULL, create_next_layer_thread, &params_list[i]);
     }
-
     for(register int i = 0; i < thread_amount; ++i) {
         pthread_join(threads[i], NULL);
     }
@@ -246,10 +244,8 @@ void get_error(long double* error, double* const layer, const int layer_size, do
     int thread_amount = layer_size < MAX_THREADS ? 1 : MAX_THREADS;
     int job_size = (int)(layer_size / thread_amount);
     int last_job_size = layer_size - (job_size * (thread_amount - 1));
-    
     struct GetErrorThreadParams params_list[thread_amount];
     pthread_t threads[thread_amount];
-
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
         params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
@@ -260,7 +256,6 @@ void get_error(long double* error, double* const layer, const int layer_size, do
         params_list[i].error = error;
         pthread_create(&threads[i], NULL, get_error_thread, &params_list[i]);
     }
-
     for(register int i = 0; i < thread_amount; ++i) {
         pthread_join(threads[i], NULL);
     }
@@ -313,10 +308,8 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
     int thread_amount = biased_layer_size < MAX_THREADS ? 1 : MAX_THREADS;
     int job_size = (int)(biased_layer_size / thread_amount);
     int last_job_size = biased_layer_size - (job_size * (thread_amount - 1));
-
     struct UpdateWeightsThreadParams params_list[thread_amount];
     pthread_t threads[thread_amount];
-
     for(register int i = 0; i < thread_amount; ++i) {
         params_list[i].starting_index = job_size * i;
         params_list[i].job_size = i == thread_amount - 1 ? last_job_size : job_size;
@@ -330,9 +323,7 @@ void update_weights(struct NeuralNetwork* neural_network, double* const layer, c
         params_list[i].momentum_enabled = neural_network->momentum_enabled;
         pthread_create(&threads[i], NULL, update_weights_thread, &params_list[i]);
     }
-
     for(register int i = 0; i < thread_amount; ++i) {
         pthread_join(threads[i], NULL);
     }
-    
 }

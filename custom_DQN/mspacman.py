@@ -44,7 +44,7 @@ class TrainingParams:
 
 def main():
     params = TrainingParams()
-    params.env_name = "Breakout-v0"
+    params.env_name = "MsPacman-v0"
     params.initial_image_height = 210
     params.initial_image_width = 160
     params.final_image_height = 84
