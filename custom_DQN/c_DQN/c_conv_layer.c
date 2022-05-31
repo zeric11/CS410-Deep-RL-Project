@@ -90,7 +90,7 @@ void* create_resized_image_thread(void* params_ptr) {
             double r = rgb_values[rgb_index];
             double g = rgb_values[rgb_index + 1];
             double b = rgb_values[rgb_index + 2];
-            resized_image[(i * final_width) + j] = (r + g + b) / (3 * 255);
+            resized_image[(i * final_width) + j] = (0.2990 * r) + (0.5870 * g) + (0.1140 * b) / 255;
         }
     }
 }
@@ -176,10 +176,10 @@ void* create_filtered_image_thread(void* params_ptr) {
                     double r = rgb_values[rgb_index];
                     double g = rgb_values[rgb_index + 1];
                     double b = rgb_values[rgb_index + 2];
-                    sum += (r + g + b) * filter[filter_index];
+                    sum += ((0.2990 * r) + (0.5870 * g) + (0.1140 * b)) * filter[filter_index];
                 }
             }
-            filtered_image[(i * final_width) + j] = sum / (double)(3 * 255 * filter_height * filter_width);  
+            filtered_image[(i * final_width) + j] = sum / (double)(255 * filter_height * filter_width);  
         }
     }
 }
