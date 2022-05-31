@@ -104,7 +104,7 @@ void free_event(struct Event* event);
 void perform_batch_update_last(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 void perform_batch_update_all(struct NeuralNetwork* neural_network, struct History* history, const double alpha, const double gamma);
 
-struct ConvLayer* create_input(int image_height, int image_width, int height_downscale_factor, int width_downscale_factor, int max_images_size);
+struct ConvLayer* create_conv_layer(int image_height, int image_width, int height_downscale_factor, int width_downscale_factor, int max_images_size);
 void add_filter(struct ConvLayer* conv_layer, double* filter, int height, int width);
 void update_combined_filter(struct ConvLayer* conv_layer);
 void add_image(struct ConvLayer* conv_layer, double* rgb_values);
@@ -113,7 +113,7 @@ double* create_resized_filtered_image(double* pixels, int initial_height, int in
 struct Image* create_filtered_image(struct ConvLayer* conv_layer, double* rgb_values);
 double* create_input_layer(struct ConvLayer* conv_layer);
 void clear_images(struct ConvLayer* conv_layer);
-void free_input(struct ConvLayer* conv_layer);
+void free_conv_layer(struct ConvLayer* conv_layer);
 void free_image(struct Image* image);
 struct Image* create_image_copy(struct Image* src_image);
 

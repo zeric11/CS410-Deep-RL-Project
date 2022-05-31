@@ -189,13 +189,13 @@ class ConvLayer:
         self.image_height = image_height
         self.image_width = image_width
         self.c_conv_layer = POINTER(c_ConvLayer)
-        c_lib.create_input.argtypes = (c_int, c_int, c_int, c_int, c_int)
-        c_lib.create_input.restype = POINTER(c_ConvLayer)
-        self.c_conv_layer = c_lib.create_input(image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size)
+        c_lib.create_conv_layer.argtypes = (c_int, c_int, c_int, c_int, c_int)
+        c_lib.create_conv_layer.restype = POINTER(c_ConvLayer)
+        self.c_conv_layer = c_lib.create_conv_layer(image_height, image_width, height_downscale_factor, width_downscale_factor, max_images_size)
 
     def __del__(self):
-        c_lib.free_input.argtype = POINTER(c_ConvLayer)
-        c_lib.free_input(self.c_conv_layer)
+        c_lib.free_conv_layer.argtype = POINTER(c_ConvLayer)
+        c_lib.free_conv_layer(self.c_conv_layer)
 
     def add_filter(self, filter) -> None:
         height = len(filter)

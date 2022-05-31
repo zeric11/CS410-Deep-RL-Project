@@ -11,7 +11,7 @@ from DQN import ConvLayer, NetworkState, NeuralNetwork, History
 import numpy as np
 #from ale_py import ALEInterface
 import gym
-from gym.envs.classic_control import rendering
+#from gym.envs.classic_control import rendering
 import matplotlib.pyplot as plt
 
 
@@ -48,12 +48,12 @@ def main():
     params.env_name = "MontezumaRevenge-v0"
     params.initial_image_height = 210
     params.initial_image_width = 160
-    params.final_image_height = 105
+    params.final_image_height = 80
     params.final_image_width = 80
     params.step_skip_amount = 5
     params.neural_network = None
     params.hidden_amount = 3
-    params.hidden_size = 1024
+    params.hidden_size = 1000
     params.output_size = 9
     params.learning_rate = 0.0001
     params.momentum_value = 0.1
@@ -63,8 +63,8 @@ def main():
     params.gamma = 0.95
     params.epsilon = 100
     params.batch_size = 300
-    params.episodes_amount = 3500
-    params.display_outputs_enabled = True
+    params.episodes_amount = 200
+    params.display_outputs_enabled = False
     params.filters_enabled = True
     params.filters_amount = 4
     params.filters = [[[-1,-1,-1], 
@@ -160,7 +160,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         for filter in params.filters:
             conv_layer.add_filter(filter)
 
-    viewer = rendering.SimpleImageViewer()
+    #viewer = rendering.SimpleImageViewer()
 
     epsilon = params.epsilon
     for episode in range(1, params.episodes_amount + 1):
@@ -171,7 +171,7 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
         score = 0
         prev_score = 0
-        prev_lives = 3
+        prev_lives = 5
 
         done = False
         step_number = 1
@@ -188,8 +188,8 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
             step_batch_reward = 0
             for i in range(step_skip_amount):
-                rgb_values = env.render("rgb_array")
-                viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
+                #rgb_values = env.render("rgb_array")
+                #viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
 
                 observation, reward, done, info = env.step(action)
                 score += reward
@@ -235,11 +235,10 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
         history.update_neural_network_all_events(params.neural_network, params.alpha, params.gamma)
 
-        if episode > 1000:
-            if epsilon > 1:
-                epsilon -= 1
-            if episode < 2000 and epsilon <= 1:
-                epsilon = params.epsilon
+        if epsilon > 1:
+            epsilon -= 1
+        if episode < 1000 and epsilon <= 1:
+            epsilon = params.epsilon
         
 
         print("Episode: {}, Score: {}".format(episode, score))

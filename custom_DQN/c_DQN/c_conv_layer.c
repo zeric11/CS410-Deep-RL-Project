@@ -1,7 +1,7 @@
 #include "c_DQN.h"
 
 
-struct ConvLayer* create_input(int image_height, int image_width, int final_image_height, int final_image_width, int max_images_amount) {
+struct ConvLayer* create_conv_layer(int image_height, int image_width, int final_image_height, int final_image_width, int max_images_amount) {
     struct ConvLayer* conv_layer = (struct ConvLayer*)malloc(sizeof(struct ConvLayer));
 
     conv_layer->initial_image_height = image_height;
@@ -134,6 +134,7 @@ struct Image* create_resized_image(struct ConvLayer* conv_layer, double* rgb_val
 
 
 struct CreateFilteredImageThreadParams {
+    int initial_height;
     int initial_width;
     int final_height;
     int final_width;
@@ -150,7 +151,7 @@ struct CreateFilteredImageThreadParams {
 
 void* create_filtered_image_thread(void* params_ptr) {
     struct CreateFilteredImageThreadParams* params = (struct CreateFilteredImageThreadParams*)params_ptr;
-    //int job_size = params->job_size;
+    int initial_height = params->initial_height;
     int initial_width = params->initial_width;
     int final_height = params->final_height;
     int final_width = params->final_width;
@@ -168,6 +169,13 @@ void* create_filtered_image_thread(void* params_ptr) {
             //int rgb_col_index = ((int)height_ratio >> 16) * j;
             int rgb_row_index = (int)((double)i * height_ratio); 
             int rgb_col_index = (int)((double)j * width_ratio);
+            if(rgb_row_index > initial_height - filter_height - 1) {
+                rgb_row_index = initial_height - filter_height - 1;
+            }
+            if(rgb_col_index > initial_width - filter_width - 1) {
+                rgb_col_index = initial_width - filter_width - 1;
+            }
+            
             double sum = 0;
             for(int k = 0; k < filter_height; ++k) {
                 for(int l = 0; l < filter_width; ++l) {
@@ -204,6 +212,7 @@ struct Image* create_filtered_image(struct ConvLayer* conv_layer, double* rgb_va
     struct CreateFilteredImageThreadParams params_list[filter_amount];
     pthread_t threads[filter_amount];
     for(register int i = 0; i < filter_amount; ++i) {
+        params_list[i].initial_height = initial_height;
         params_list[i].initial_width = initial_width;
         params_list[i].final_height = final_height;
         params_list[i].final_width = final_width;
@@ -283,7 +292,7 @@ void clear_images(struct ConvLayer* conv_layer) {
 }
 
 
-void free_input(struct ConvLayer* conv_layer) {
+void free_conv_layer(struct ConvLayer* conv_layer) {
     if(conv_layer) {
         if(conv_layer->images) {
             clear_images(conv_layer);
