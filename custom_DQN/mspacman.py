@@ -63,7 +63,7 @@ def main():
     params.gamma = 0.95
     params.epsilon = 100
     params.batch_size = 300
-    params.episodes_amount = 2000
+    params.episodes_amount = 1#500
     params.display_outputs_enabled = False
     params.filters_enabled = True
     params.filters_amount = 4
@@ -92,7 +92,7 @@ def main():
     plt.ylabel("Score")
     #plt.title("Test 1")
     plt.savefig("test_1")
-    plt.show()
+    #plt.show()
 
 
 def get_avg_data(x_values, y_values):
@@ -107,29 +107,29 @@ def get_avg_data(x_values, y_values):
 
 def save_data_to_file(filename, params, x_values, y_values):
     with open(filename, "w") as data_file:
-        data_file.write("env_name:", params.env_name)
-        data_file.write("initial_image_height:", params.initial_image_height)
-        data_file.write("initial_image_width:", params.initial_image_width)
-        data_file.write("final_image_height:", params.final_image_height)
-        data_file.write("final_image_width:", params.final_image_width)
-        data_file.write("step_skip_amount:", params.step_skip_amount)
-        data_file.write("hidden_amount:", params.hidden_amount)
-        data_file.write("hidden_size:", params.hidden_size)
-        data_file.write("output_size:", params.output_size)
-        data_file.write("learning_rate:", params.learning_rate)
-        data_file.write("momentum_value:", params.momentum_value)
-        data_file.write("momentum_enabled:", params.momentum_enabled)
-        data_file.write("randomize_weights:", params.randomize_weights)
-        data_file.write("alpha:", params.alpha)
-        data_file.write("gamma:", params.gamma)
-        data_file.write("batch_size:", params.batch_size)
-        data_file.write("episodes_amount:", params.episodes_amount)
-        data_file.write("display_outputs_enabled:", params.display_outputs_enabled)
-        data_file.write("filters_enabled:", params.filters_enabled)
-        data_file.write("filters_amount:", params.filters_amount)
+        data_file.write("env_name: " + str(params.env_name) + "\n")
+        data_file.write("initial_image_height: " + str(params.initial_image_height) + "\n")
+        data_file.write("initial_image_width: " + str(params.initial_image_width) + "\n")
+        data_file.write("final_image_height: " + str(params.final_image_height) + "\n")
+        data_file.write("final_image_width: " + str(params.final_image_width) + "\n")
+        data_file.write("step_skip_amount: " + str(params.step_skip_amount) + "\n")
+        data_file.write("hidden_amount: " + str(params.hidden_amount) + "\n")
+        data_file.write("hidden_size: " + str(params.hidden_size) + "\n")
+        data_file.write("output_size: " + str(params.output_size) + "\n")
+        data_file.write("learning_rate: " + str(params.learning_rate) + "\n")
+        data_file.write("momentum_value: " + str(params.momentum_value) + "\n")
+        data_file.write("momentum_enabled: " + str(params.momentum_enabled) + "\n")
+        data_file.write("randomize_weights: " + str(params.randomize_weights) + "\n")
+        data_file.write("alpha: " + str(params.alpha) + "\n")
+        data_file.write("gamma: " + str(params.gamma) + "\n")
+        data_file.write("batch_size: " + str(params.batch_size) + "\n")
+        data_file.write("episodes_amount: " + str(params.episodes_amount) + "\n")
+        data_file.write("display_outputs_enabled: " + str(params.display_outputs_enabled) + "\n")
+        data_file.write("filters_enabled: " + str(params.filters_enabled) + "\n")
+        data_file.write("filters_amount: " + str(params.filters_amount) + "\n")
         data_file.write("\nEpisode\tScore\n")
         for i in range(len(x_values)):
-            data_file.write(str(x_values[i]), "\t", str(y_values[i]))
+            data_file.write(str(x_values[i]) + "\t" + str(y_values[i]) + "\n")
 
 
 def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
