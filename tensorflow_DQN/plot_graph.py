@@ -2,13 +2,12 @@ import numpy as np
 import reinforcement_learning as rl
 import matplotlib.pyplot as plt
 
-#rl.checkpoint_base_dir = 'original/checkpoints_tutorial16/'
+
 rl.checkpoint_base_dir = 'checkpoints_tutorial16/'
-#rl.update_paths(env_name = 'ALE/SpaceInvaders-v5')
+
 #rl.update_paths(env_name = 'ALE/MontezumaRevenge-v5')
-#rl.update_paths(env_name = 'ALE/MsPacmanv5')
 rl.update_paths(env_name = 'ALE/MsPacman-v5')
-#rl.update_paths(env_name = 'ALE/MontezumaRevengev5')
+
 log_reward = rl.LogReward()
 log_q_values = rl.LogQValues()
 log_q_values.read()
@@ -19,8 +18,7 @@ number_of_states = np.arange(0,len(log_reward.count_states))
 plt.plot(number_of_states, log_reward.episode, label='Episode Reward')
 plt.plot(number_of_states, log_reward.mean, label='Mean of 100 episodes')
 plt.xlabel('Episode-Count for Game Environment')
-#step = len(number_of_states)/5
-#plt.xticks(np.arange(0,len(number_of_states),step))
+
 plt.legend()
 plt.show()
 
