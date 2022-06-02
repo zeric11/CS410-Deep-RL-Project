@@ -1,5 +1,4 @@
-# https://www.youtube.com/watch?v=hCeJeq8U0lo
-# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 mspacman.py
+# valgrind --log-file="mem_test.txt" --tool=memcheck --leak-check=yes -s python3 montezuma.py
 
 import faulthandler
 faulthandler.enable()
@@ -7,11 +6,8 @@ faulthandler.enable()
 from typing import List, Tuple
 import random
 from DQN import ConvLayer, NetworkState, NeuralNetwork, History
-#from conv_layer import ConvLayer
 import numpy as np
-#from ale_py import ALEInterface
 import gym
-#from gym.envs.classic_control import rendering
 import matplotlib.pyplot as plt
 
 
@@ -91,7 +87,6 @@ def main():
     plt.xlabel("Episode")
     plt.ylabel("Score")
     plt.savefig("test_montezuma")
-    #plt.show()
 
 
 def get_avg_data(x_values, y_values):
@@ -167,8 +162,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         for filter in params.filters:
             conv_layer.add_filter(filter)
 
-    #viewer = rendering.SimpleImageViewer()
-
     epsilon = params.epsilon
     for episode in range(1, params.episodes_amount + 1):
         history = History()
@@ -186,8 +179,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
         afk_counter = 0
         afk_max_amount = 1000
         afk_reward = -1000
-        afk_reward_growth = -5
-        #reward_coefficient = 5
         while not done:
             network_state = params.neural_network.execute_forward_propagation(conv_layer)
             conv_layer.clear_images()
@@ -195,9 +186,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
             step_batch_reward = 0
             for i in range(step_skip_amount):
-                #rgb_values = env.render("rgb_array")
-                #viewer.imshow(np.repeat(np.repeat(rgb_values, 3, axis=0), 3, axis=1))
-
                 observation, reward, done, info = env.step(action)
                 score += reward
 
@@ -212,18 +200,15 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
                 lives = info["lives"]
                 if lives < prev_lives:
-                    #reward -= 5 * (5 - lives)
                     reward += -100
                     prev_lives = lives
                     afk_counter = 0
 
                 if afk_counter == afk_max_amount:
                     reward += afk_reward
-                    #afk_reward += afk_reward_growth
                     afk_counter = 0
 
                 if params.display_outputs_enabled:
-                    #actual_reward = reward * reward_coefficient
                     print("Ep:", episode, "\tStep:", step_number, end='\t', flush=True)
                     network_state.display_output()
                     print("\tAction:", action, "\tReward:", reward)
@@ -233,7 +218,6 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
             history.add_event(network_state, action, step_batch_reward)
             if history.get_length() >= params.batch_size:
-            #if history.get_length() >= episode:
                 # After certain number of steps has been completed, we are left with a "history" of network_states.
                 # A batch update must be performed to update the neural network where the reward earned at the 
                 # last action is passed down through the previous actions and the network's weights are adjusted 
