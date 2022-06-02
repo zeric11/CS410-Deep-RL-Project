@@ -48,14 +48,14 @@ def main():
     params.env_name = "MsPacman-v0"
     params.initial_image_height = 210
     params.initial_image_width = 160
-    params.final_image_height = 80
+    params.final_image_height = 105
     params.final_image_width = 80
-    params.step_skip_amount = 5
+    params.step_skip_amount = 6
     params.neural_network = None
     params.hidden_amount = 3
-    params.hidden_size = 1000
+    params.hidden_size = 1024
     params.output_size = 9
-    params.learning_rate = 0.0001
+    params.learning_rate = 0.01
     params.momentum_value = 0.1
     params.momentum_enabled = True
     params.randomize_weights = True
@@ -63,7 +63,7 @@ def main():
     params.gamma = 0.95
     params.epsilon = 100
     params.batch_size = 300
-    params.episodes_amount = 1#500
+    params.episodes_amount = 4000
     params.display_outputs_enabled = False
     params.filters_enabled = True
     params.filters_amount = 4
@@ -83,25 +83,32 @@ def main():
     x_values, y_values = training(params)
     y_avg_values = get_avg_data(x_values, y_values)
 
-    save_data_to_file("test_1.txt", params, x_values, y_values)
+    save_data_to_file("test_mspacman.txt", params, x_values, y_values)
 
     plt.plot(x_values, y_values)
     plt.plot(x_values, y_avg_values)
     plt.legend(["Episode Reward", "Mean of 100 episodes"])
     plt.xlabel("Episode")
     plt.ylabel("Score")
-    #plt.title("Test 1")
-    plt.savefig("test_1")
+    plt.savefig("test_mspacman")
     #plt.show()
 
 
 def get_avg_data(x_values, y_values):
+    def get_avg(start, end, array):
+        counter = 0
+        total = 0
+        for i in range(start, end):
+            total += array[i]
+            counter += 1
+        return total / counter
+
     y_avg_values = []
-    total = 0
     for i in range(len(x_values)):
-        total += y_values[i]
-        if x_values[i] % 100 == 0:
-            y_avg_values += [(total / 100) for i in range(100)]
+        start = i - 50 if i >= 50 else 0
+        end = i + 50 + 1 if i + 50 < len(x_values) else len(x_values)
+        avg = get_avg(start, end, y_values)
+        y_avg_values.append(avg)
     return y_avg_values
 
 
@@ -235,10 +242,10 @@ def training(params: TrainingParams) -> Tuple[List[int], List[float]]:
 
         history.update_neural_network_all_events(params.neural_network, params.alpha, params.gamma)
 
-        if epsilon > 1:
+        if episode > 1000:
             epsilon -= 1
-        if episode < 1000 and epsilon <= 1:
-            epsilon = params.epsilon
+            if episode < 2000 and epsilon <= 1:
+                epsilon = params.epsilon
         
 
         print("Episode: {}, Score: {}".format(episode, score))
