@@ -90,7 +90,6 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
     struct Event* event = history->event_head;
     double next_state_max_Qvalue = 0;
     for(register int i = 0; i < history->size; ++i) {
-        //events[i] = event;
         struct NetworkState* network_state = event->network_state;
         int chosen_action = event->chosen_action;
         int reward = event->reward;
@@ -104,8 +103,6 @@ void perform_batch_update_all(struct NeuralNetwork* neural_network, struct Histo
         if(new_Qvalue != 0) {
             target_output[chosen_action] = sigmoid_function(new_Qvalue);
         }
-
-        //printf("New Q-value: %lf\n", new_Qvalue);
 
         execute_back_propagation(neural_network, network_state, target_output);
 
