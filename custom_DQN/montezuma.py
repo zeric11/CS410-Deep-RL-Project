@@ -46,11 +46,11 @@ def main():
     params.initial_image_width = 160
     params.final_image_height = 105
     params.final_image_width = 80
-    params.step_skip_amount = 6
+    params.step_skip_amount = 5
     params.neural_network = None
     params.hidden_amount = 3
     params.hidden_size = 1024
-    params.output_size = 9
+    params.output_size = 18
     params.learning_rate = 0.01
     params.momentum_value = 0.1
     params.momentum_enabled = True
