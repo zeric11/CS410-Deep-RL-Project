@@ -46,7 +46,7 @@ def main():
     params.initial_image_width = 160
     params.final_image_height = 105
     params.final_image_width = 80
-    params.step_skip_amount = 6
+    params.step_skip_amount = 5
     params.neural_network = None
     params.hidden_amount = 3
     params.hidden_size = 1024
